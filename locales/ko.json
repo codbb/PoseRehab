@@ -1,0 +1,400 @@
+{
+  "common": {
+    "guest": "게스트",
+    "save": "저장",
+    "cancel": "취소",
+    "next": "다음",
+    "back": "이전",
+    "start": "시작",
+    "stop": "중지",
+    "pause": "일시정지",
+    "resume": "재개",
+    "complete": "완료",
+    "skip": "건너뛰기",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "retry": "다시 시도",
+    "confirm": "확인",
+    "delete": "삭제",
+    "edit": "수정",
+    "close": "닫기"
+  },
+  "nav": {
+    "home": "홈",
+    "postureAnalysis": "자세 분석",
+    "analysisHistory": "분석 기록",
+    "exercise": "운동",
+    "handRehab": "손 재활",
+    "romMeasurement": "ROM 측정",
+    "gaitAnalysis": "보행 분석",
+    "avatar": "3D 아바타",
+    "games": "재활 게임",
+    "history": "운동 기록",
+    "prediction": "통증 예측",
+    "settings": "설정"
+  },
+  "avatar": {
+    "title": "3D 아바타",
+    "startTracking": "추적 시작",
+    "stopTracking": "추적 중지",
+    "resetPose": "자세 초기화",
+    "loading": "로딩 중...",
+    "tracking": "추적 중",
+    "cameraPlaceholder": "추적을 시작하여 아바타를 조종하세요",
+    "selectModel": "VRM 모델을 선택하세요",
+    "uploadModel": "VRM 파일 업로드",
+    "mode": {
+      "fullbody": "전신",
+      "hands": "손만",
+      "game": "게임 모드"
+    },
+    "settings": {
+      "title": "아바타 설정",
+      "background": "배경",
+      "lighting": "조명",
+      "camera": "카메라 앵글",
+      "model": "모델"
+    },
+    "cameraPreset": {
+      "front": "정면",
+      "left": "좌측",
+      "right": "우측",
+      "back": "후면"
+    },
+    "error": {
+      "loadFailed": "아바타 모델 로드 실패",
+      "noCamera": "카메라를 사용할 수 없습니다"
+    }
+  },
+  "theme": {
+    "mode": "모드",
+    "light": "라이트",
+    "dark": "다크",
+    "system": "시스템",
+    "color": "색상 테마"
+  },
+  "onboarding": {
+    "welcome": "PostureAI에 오신 것을 환영합니다",
+    "subtitle": "AI 기반 자세 분석 및 재활 운동 플랫폼",
+    "step1": {
+      "title": "목표를 선택해주세요",
+      "subtitle": "관심 있는 항목을 모두 선택해주세요"
+    },
+    "step2": {
+      "title": "통증 부위를 알려주세요",
+      "subtitle": "통증이 있는 부위를 클릭해주세요",
+      "intensity": "통증 강도",
+      "frequency": "통증 빈도",
+      "frequencyOptions": {
+        "daily": "매일",
+        "weekly": "주 몇회",
+        "occasionally": "가끔"
+      }
+    },
+    "step3": {
+      "title": "기본 정보를 입력해주세요",
+      "name": "이름",
+      "gender": "성별",
+      "genderOptions": {
+        "male": "남성",
+        "female": "여성",
+        "other": "기타"
+      },
+      "age": "나이",
+      "height": "키 (cm)",
+      "weight": "몸무게 (kg)",
+      "occupation": "직업 유형",
+      "occupationOptions": {
+        "desk": "데스크워크",
+        "standing": "서서 일함",
+        "active": "활동적",
+        "other": "기타"
+      }
+    },
+    "step4": {
+      "title": "운동 시간을 설정해주세요",
+      "dailyTime": "하루 운동 시간",
+      "preferredTime": "선호 시간대",
+      "preferredTimeOptions": {
+        "morning": "아침",
+        "afternoon": "점심",
+        "evening": "저녁"
+      },
+      "enableReminder": "운동 알림 받기"
+    },
+    "complete": {
+      "title": "설정이 완료되었습니다!",
+      "subtitle": "맞춤형 운동 프로그램을 시작해보세요",
+      "startButton": "시작하기"
+    }
+  },
+  "dashboard": {
+    "title": "대시보드",
+    "postureScore": "자세 점수",
+    "noScoreYet": "아직 측정 결과가 없습니다",
+    "measureNow": "지금 측정하기",
+    "todayExercise": "오늘의 추천 운동",
+    "weeklyProgress": "이번 주 운동 현황",
+    "exerciseDays": "운동 일수",
+    "totalTime": "총 운동 시간",
+    "weeklyReport": "주간 리포트",
+    "viewReport": "리포트 보기",
+    "tips": {
+      "title": "오늘의 팁",
+      "posture": "바른 자세로 앉으면 허리 건강에 좋습니다",
+      "stretch": "1시간마다 스트레칭을 해주세요",
+      "water": "충분한 물을 마시세요"
+    }
+  },
+  "postureAnalysis": {
+    "title": "자세 분석",
+    "selectMode": "분석 방법을 선택해주세요",
+    "cameraMode": "실시간 촬영",
+    "cameraModeDesc": "웹캠으로 자세를 촬영합니다",
+    "uploadMode": "이미지 업로드",
+    "uploadModeDesc": "사진을 업로드합니다",
+    "captureGuide": {
+      "front": "정면 촬영",
+      "side": "측면 촬영",
+      "back": "후면 촬영",
+      "countdown": "촬영까지",
+      "instructions": "가이드라인 안에 서주세요"
+    },
+    "analyzing": "분석 중입니다...",
+    "result": {
+      "title": "분석 결과",
+      "overallScore": "전체 점수",
+      "bodyParts": "부위별 분석",
+      "shoulders": "어깨",
+      "spine": "척추",
+      "pelvis": "골반",
+      "knees": "무릎",
+      "head": "머리",
+      "potentialConditions": "예상 질환",
+      "muscles": "근육 상태",
+      "contracted": "수축된 근육",
+      "stretched": "늘어난 근육",
+      "recommendations": "추천 운동",
+      "saveReport": "리포트 저장",
+      "compareHistory": "이전 결과 비교",
+      "classification": {
+        "title": "자세 유형 분류",
+        "aiDetection": "AI 자세 유형 판별",
+        "sideSpineLine": "측면 척추 라인",
+        "postureTypeChart": "자세 유형 차트",
+        "confidence": "판별 신뢰도",
+        "legAnalysis": "다리 형태 분석",
+        "overallAngle": "전체 각도",
+        "idealRange": "이상적 범위",
+        "leftLeg": "왼쪽 다리",
+        "rightLeg": "오른쪽 다리",
+        "weightCenter": "무게중심 분석",
+        "left": "왼쪽",
+        "right": "오른쪽",
+        "balanced": "균형 잡힘",
+        "leaningLeft": "왼쪽으로 쏠림",
+        "leaningRight": "오른쪽으로 쏠림"
+      },
+      "visualization": {
+        "title": "신체 왜곡 시각화",
+        "sagittalPlane": "측면 분석",
+        "frontalPlane": "정면 분석",
+        "item": "항목",
+        "ideal": "이상적 값",
+        "position": "위치",
+        "value": "값",
+        "fullBodyTilt": "전신 전후방 기울기",
+        "upperBodyTilt": "상체 전후방 기울기",
+        "lowerBodyTilt": "하체 전후방 기울기",
+        "headTilt": "머리 전후방 기울기",
+        "headDeviation": "머리 전후 편차",
+        "spinalCurvature": "척추 만곡도",
+        "pelvicTilt": "골반 전후방 기울기",
+        "pelvicDisplacement": "골반 전후 변위",
+        "kneeFlexion": "무릎 굽힘 정도",
+        "normalRange": "정상 범위",
+        "warning": "주의",
+        "danger": "위험"
+      },
+      "muscle": {
+        "title": "근육 불균형 분석",
+        "distribution": "근육 분포도",
+        "contracted": "수축된 근육",
+        "stretched": "늘어난 근육",
+        "showAll": "전체 표시",
+        "hideAll": "전체 숨기기",
+        "display": "표시",
+        "hidden": "숨김",
+        "front": "전면",
+        "rear": "후면",
+        "summary": "근육 불균형 요약",
+        "totalAffected": "전체 영향 근육",
+        "recommendations": "권장 사항",
+        "stretchingNeeded": "수축된 근육은 스트레칭 운동이 필요합니다.",
+        "strengtheningNeeded": "늘어난 근육은 강화 운동이 필요합니다.",
+        "balancedProgram": "균형 잡힌 운동 프로그램을 통해 근육 불균형을 개선하세요."
+      }
+    }
+  },
+  "exercise": {
+    "title": "운동",
+    "list": {
+      "title": "운동 목록",
+      "categories": {
+        "all": "전체",
+        "stretching": "스트레칭",
+        "strength": "근력 운동",
+        "core": "코어 운동",
+        "correction": "교정 운동",
+        "rehabilitation": "재활 운동"
+      },
+      "difficulty": {
+        "beginner": "초급",
+        "intermediate": "중급",
+        "advanced": "고급"
+      },
+      "duration": "소요 시간",
+      "reps": "반복",
+      "sets": "세트"
+    },
+    "session": {
+      "title": "운동 세션",
+      "ready": "준비",
+      "go": "시작!",
+      "repsCompleted": "완료",
+      "currentSet": "현재 세트",
+      "accuracy": "정확도",
+      "feedback": {
+        "good": "잘하고 있어요!",
+        "adjustKnee": "무릎이 발끝을 넘지 않도록 하세요",
+        "straightBack": "등을 곧게 펴세요",
+        "lowerHips": "엉덩이를 더 낮추세요",
+        "perfectForm": "완벽한 자세입니다!"
+      },
+      "calibration": "캘리브레이션",
+      "startAngle": "시작 각도",
+      "targetAngle": "목표 각도",
+      "threshold": "완료 임계값",
+      "resetDefault": "기본값 복원"
+    },
+    "result": {
+      "title": "운동 완료!",
+      "totalTime": "총 운동 시간",
+      "completedReps": "완료 횟수",
+      "avgAccuracy": "평균 정확도",
+      "caloriesBurned": "소모 칼로리",
+      "feedback": "피드백",
+      "goodPoints": "잘한 점",
+      "improvements": "개선할 점",
+      "saveAndExit": "저장 후 종료",
+      "doAgain": "다시 하기"
+    }
+  },
+  "handRehab": {
+    "title": "손 재활 운동",
+    "exercises": {
+      "fingerFlexion": "손가락 굴곡/신전",
+      "tendonGlide": "힘줄 미끄럼 운동",
+      "thumbTouch": "엄지-손가락 터치",
+      "fingerSpread": "손가락 벌리기",
+      "gripSqueeze": "그립 쥐기",
+      "wristRotation": "손목 회전"
+    },
+    "guide": {
+      "step1": "손가락을 완전히 펴세요",
+      "step2": "천천히 주먹을 쥐세요",
+      "step3": "5초간 유지 후 다시 펴세요"
+    }
+  },
+  "games": {
+    "title": "재활 게임",
+    "rhythmGrip": {
+      "title": "리듬 그립",
+      "description": "리듬에 맞춰 손을 쥐세요"
+    },
+    "poseMatch": {
+      "title": "자세 맞추기",
+      "description": "벽의 구멍에 맞는 자세를 취하세요"
+    },
+    "fruitNinja": {
+      "title": "과일 닌자",
+      "description": "손동작으로 과일을 자르세요"
+    },
+    "difficulty": {
+      "easy": "쉬움",
+      "normal": "보통",
+      "hard": "어려움"
+    },
+    "score": "점수",
+    "combo": "콤보",
+    "highScore": "최고 점수"
+  },
+  "history": {
+    "title": "운동 기록",
+    "calendar": "캘린더",
+    "noRecords": "이 날의 기록이 없습니다",
+    "stats": {
+      "title": "통계",
+      "totalSessions": "총 세션",
+      "totalTime": "총 운동 시간",
+      "avgAccuracy": "평균 정확도",
+      "streak": "연속 운동일"
+    }
+  },
+  "settings": {
+    "title": "설정",
+    "profile": "프로필",
+    "editProfile": "프로필 수정",
+    "theme": "테마",
+    "language": "언어",
+    "notifications": {
+      "title": "알림",
+      "exerciseReminder": "운동 알림",
+      "reminderTime": "알림 시간",
+      "weeklyReport": "주간 리포트 알림"
+    },
+    "data": {
+      "title": "데이터",
+      "export": "데이터 내보내기",
+      "reset": "데이터 초기화",
+      "resetConfirm": "정말로 모든 데이터를 초기화하시겠습니까?"
+    },
+    "about": {
+      "title": "앱 정보",
+      "version": "버전"
+    }
+  },
+  "prediction": {
+    "title": "통증 예측",
+    "painRisk": "통증 위험도",
+    "bodyChange": "체형 변화 예측",
+    "overall": "전체 위험도",
+    "areasAtRisk": "위험 부위",
+    "timeline": "예상 시기",
+    "prevention": "예방 운동",
+    "riskLevel": {
+      "high": "높음",
+      "medium": "중간",
+      "low": "낮음"
+    },
+    "noAnalysis": "자세 분석이 필요합니다",
+    "startAnalysis": "자세 분석하기"
+  },
+  "gamification": {
+    "level": "레벨",
+    "experience": "경험치",
+    "badges": "뱃지",
+    "dailyChallenge": "일일 챌린지",
+    "streak": "연속 출석",
+    "levelUp": "레벨 업!",
+    "badgeEarned": "뱃지 획득!",
+    "xpEarned": "XP 획득",
+    "claimReward": "보상 받기",
+    "progress": "진행"
+  },
+  "report": {
+    "generate": "리포트 생성",
+    "download": "PDF 다운로드",
+    "generating": "생성 중..."
+  }
+}

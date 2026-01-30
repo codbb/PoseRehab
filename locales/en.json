@@ -1,0 +1,400 @@
+{
+  "common": {
+    "guest": "Guest",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "back": "Back",
+    "start": "Start",
+    "stop": "Stop",
+    "pause": "Pause",
+    "resume": "Resume",
+    "complete": "Complete",
+    "skip": "Skip",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close"
+  },
+  "nav": {
+    "home": "Home",
+    "postureAnalysis": "Posture Analysis",
+    "analysisHistory": "Analysis History",
+    "exercise": "Exercise",
+    "handRehab": "Hand Rehab",
+    "romMeasurement": "ROM Measurement",
+    "gaitAnalysis": "Gait Analysis",
+    "avatar": "3D Avatar",
+    "games": "Rehab Games",
+    "history": "History",
+    "prediction": "Pain Prediction",
+    "settings": "Settings"
+  },
+  "avatar": {
+    "title": "3D Avatar",
+    "startTracking": "Start Tracking",
+    "stopTracking": "Stop Tracking",
+    "resetPose": "Reset Pose",
+    "loading": "Loading...",
+    "tracking": "Tracking",
+    "cameraPlaceholder": "Start tracking to control the avatar",
+    "selectModel": "Select a VRM model",
+    "uploadModel": "Upload VRM File",
+    "mode": {
+      "fullbody": "Full Body",
+      "hands": "Hands Only",
+      "game": "Game Mode"
+    },
+    "settings": {
+      "title": "Avatar Settings",
+      "background": "Background",
+      "lighting": "Lighting",
+      "camera": "Camera Angle",
+      "model": "Model"
+    },
+    "cameraPreset": {
+      "front": "Front",
+      "left": "Left",
+      "right": "Right",
+      "back": "Back"
+    },
+    "error": {
+      "loadFailed": "Failed to load avatar model",
+      "noCamera": "Camera not available"
+    }
+  },
+  "theme": {
+    "mode": "Mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "color": "Color Theme"
+  },
+  "onboarding": {
+    "welcome": "Welcome to PostureAI",
+    "subtitle": "AI-powered posture analysis and rehabilitation platform",
+    "step1": {
+      "title": "Select Your Goals",
+      "subtitle": "Choose all that interest you"
+    },
+    "step2": {
+      "title": "Tell Us About Your Pain",
+      "subtitle": "Click on the areas where you feel pain",
+      "intensity": "Pain Intensity",
+      "frequency": "Pain Frequency",
+      "frequencyOptions": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "occasionally": "Occasionally"
+      }
+    },
+    "step3": {
+      "title": "Enter Your Information",
+      "name": "Name",
+      "gender": "Gender",
+      "genderOptions": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other"
+      },
+      "age": "Age",
+      "height": "Height (cm)",
+      "weight": "Weight (kg)",
+      "occupation": "Occupation Type",
+      "occupationOptions": {
+        "desk": "Desk Work",
+        "standing": "Standing Work",
+        "active": "Active",
+        "other": "Other"
+      }
+    },
+    "step4": {
+      "title": "Set Your Exercise Time",
+      "dailyTime": "Daily Exercise Time",
+      "preferredTime": "Preferred Time",
+      "preferredTimeOptions": {
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      },
+      "enableReminder": "Enable Exercise Reminder"
+    },
+    "complete": {
+      "title": "Setup Complete!",
+      "subtitle": "Start your personalized exercise program",
+      "startButton": "Get Started"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "postureScore": "Posture Score",
+    "noScoreYet": "No measurement yet",
+    "measureNow": "Measure Now",
+    "todayExercise": "Today's Recommended Exercises",
+    "weeklyProgress": "Weekly Progress",
+    "exerciseDays": "Exercise Days",
+    "totalTime": "Total Time",
+    "weeklyReport": "Weekly Report",
+    "viewReport": "View Report",
+    "tips": {
+      "title": "Today's Tip",
+      "posture": "Good posture helps your back health",
+      "stretch": "Stretch every hour",
+      "water": "Stay hydrated"
+    }
+  },
+  "postureAnalysis": {
+    "title": "Posture Analysis",
+    "selectMode": "Select Analysis Method",
+    "cameraMode": "Live Camera",
+    "cameraModeDesc": "Capture your posture with webcam",
+    "uploadMode": "Upload Image",
+    "uploadModeDesc": "Upload your photos",
+    "captureGuide": {
+      "front": "Front View",
+      "side": "Side View",
+      "back": "Back View",
+      "countdown": "Capturing in",
+      "instructions": "Stand within the guideline"
+    },
+    "analyzing": "Analyzing...",
+    "result": {
+      "title": "Analysis Result",
+      "overallScore": "Overall Score",
+      "bodyParts": "Body Part Analysis",
+      "shoulders": "Shoulders",
+      "spine": "Spine",
+      "pelvis": "Pelvis",
+      "knees": "Knees",
+      "head": "Head",
+      "potentialConditions": "Potential Conditions",
+      "muscles": "Muscle Status",
+      "contracted": "Contracted Muscles",
+      "stretched": "Stretched Muscles",
+      "recommendations": "Recommended Exercises",
+      "saveReport": "Save Report",
+      "compareHistory": "Compare with History",
+      "classification": {
+        "title": "Posture Type Classification",
+        "aiDetection": "AI Posture Type Detection",
+        "sideSpineLine": "Side Spine Line",
+        "postureTypeChart": "Posture Type Chart",
+        "confidence": "Detection Confidence",
+        "legAnalysis": "Leg Shape Analysis",
+        "overallAngle": "Overall Angle",
+        "idealRange": "Ideal Range",
+        "leftLeg": "Left Leg",
+        "rightLeg": "Right Leg",
+        "weightCenter": "Weight Center Analysis",
+        "left": "Left",
+        "right": "Right",
+        "balanced": "Balanced",
+        "leaningLeft": "Leaning Left",
+        "leaningRight": "Leaning Right"
+      },
+      "visualization": {
+        "title": "Body Distortion Visualization",
+        "sagittalPlane": "Side Analysis",
+        "frontalPlane": "Front Analysis",
+        "item": "Item",
+        "ideal": "Ideal Value",
+        "position": "Position",
+        "value": "Value",
+        "fullBodyTilt": "Full body forward/backward tilt",
+        "upperBodyTilt": "Upper body forward/backward tilt",
+        "lowerBodyTilt": "Lower body forward/backward tilt",
+        "headTilt": "Head forward/backward tilt",
+        "headDeviation": "Head forward/backward deviation",
+        "spinalCurvature": "Spinal curvature",
+        "pelvicTilt": "Pelvic forward/backward tilt",
+        "pelvicDisplacement": "Pelvic forward/backward displacement",
+        "kneeFlexion": "Knee flexion degree",
+        "normalRange": "Normal Range",
+        "warning": "Warning",
+        "danger": "Danger"
+      },
+      "muscle": {
+        "title": "Muscle Imbalance Analysis",
+        "distribution": "Muscle Distribution",
+        "contracted": "Contracted Muscles",
+        "stretched": "Stretched Muscles",
+        "showAll": "Show All",
+        "hideAll": "Hide All",
+        "display": "Display",
+        "hidden": "Hidden",
+        "front": "Front",
+        "rear": "Rear",
+        "summary": "Muscle Imbalance Summary",
+        "totalAffected": "Total Affected",
+        "recommendations": "Recommendations",
+        "stretchingNeeded": "Contracted muscles require stretching exercises.",
+        "strengtheningNeeded": "Stretched muscles require strengthening exercises.",
+        "balancedProgram": "Improve muscle imbalance through a balanced exercise program."
+      }
+    }
+  },
+  "exercise": {
+    "title": "Exercise",
+    "list": {
+      "title": "Exercise List",
+      "categories": {
+        "all": "All",
+        "stretching": "Stretching",
+        "strength": "Strength",
+        "core": "Core",
+        "correction": "Correction",
+        "rehabilitation": "Rehabilitation"
+      },
+      "difficulty": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "duration": "Duration",
+      "reps": "Reps",
+      "sets": "Sets"
+    },
+    "session": {
+      "title": "Exercise Session",
+      "ready": "Ready",
+      "go": "Go!",
+      "repsCompleted": "Completed",
+      "currentSet": "Current Set",
+      "accuracy": "Accuracy",
+      "feedback": {
+        "good": "Great job!",
+        "adjustKnee": "Keep your knees behind your toes",
+        "straightBack": "Keep your back straight",
+        "lowerHips": "Lower your hips more",
+        "perfectForm": "Perfect form!"
+      },
+      "calibration": "Calibration",
+      "startAngle": "Start Angle",
+      "targetAngle": "Target Angle",
+      "threshold": "Completion Threshold",
+      "resetDefault": "Reset to Default"
+    },
+    "result": {
+      "title": "Exercise Complete!",
+      "totalTime": "Total Time",
+      "completedReps": "Completed Reps",
+      "avgAccuracy": "Avg Accuracy",
+      "caloriesBurned": "Calories Burned",
+      "feedback": "Feedback",
+      "goodPoints": "Good Points",
+      "improvements": "Areas to Improve",
+      "saveAndExit": "Save & Exit",
+      "doAgain": "Do Again"
+    }
+  },
+  "handRehab": {
+    "title": "Hand Rehabilitation",
+    "exercises": {
+      "fingerFlexion": "Finger Flexion/Extension",
+      "tendonGlide": "Tendon Gliding",
+      "thumbTouch": "Thumb-to-Finger Touch",
+      "fingerSpread": "Finger Spread",
+      "gripSqueeze": "Grip Squeeze",
+      "wristRotation": "Wrist Rotation"
+    },
+    "guide": {
+      "step1": "Extend your fingers fully",
+      "step2": "Slowly make a fist",
+      "step3": "Hold for 5 seconds then release"
+    }
+  },
+  "games": {
+    "title": "Rehab Games",
+    "rhythmGrip": {
+      "title": "Rhythm Grip",
+      "description": "Squeeze to the rhythm"
+    },
+    "poseMatch": {
+      "title": "Pose Match",
+      "description": "Match the pose to pass through walls"
+    },
+    "fruitNinja": {
+      "title": "Fruit Ninja",
+      "description": "Slice fruits with hand gestures"
+    },
+    "difficulty": {
+      "easy": "Easy",
+      "normal": "Normal",
+      "hard": "Hard"
+    },
+    "score": "Score",
+    "combo": "Combo",
+    "highScore": "High Score"
+  },
+  "history": {
+    "title": "Exercise History",
+    "calendar": "Calendar",
+    "noRecords": "No records for this day",
+    "stats": {
+      "title": "Statistics",
+      "totalSessions": "Total Sessions",
+      "totalTime": "Total Time",
+      "avgAccuracy": "Avg Accuracy",
+      "streak": "Streak"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "editProfile": "Edit Profile",
+    "theme": "Theme",
+    "language": "Language",
+    "notifications": {
+      "title": "Notifications",
+      "exerciseReminder": "Exercise Reminder",
+      "reminderTime": "Reminder Time",
+      "weeklyReport": "Weekly Report"
+    },
+    "data": {
+      "title": "Data",
+      "export": "Export Data",
+      "reset": "Reset Data",
+      "resetConfirm": "Are you sure you want to reset all data?"
+    },
+    "about": {
+      "title": "About",
+      "version": "Version"
+    }
+  },
+  "prediction": {
+    "title": "Pain Prediction",
+    "painRisk": "Pain Risk",
+    "bodyChange": "Body Change Prediction",
+    "overall": "Overall Risk",
+    "areasAtRisk": "Areas at Risk",
+    "timeline": "Expected Timeline",
+    "prevention": "Prevention Exercises",
+    "riskLevel": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "noAnalysis": "Posture analysis required",
+    "startAnalysis": "Start Analysis"
+  },
+  "gamification": {
+    "level": "Level",
+    "experience": "Experience",
+    "badges": "Badges",
+    "dailyChallenge": "Daily Challenge",
+    "streak": "Streak",
+    "levelUp": "Level Up!",
+    "badgeEarned": "Badge Earned!",
+    "xpEarned": "XP Earned",
+    "claimReward": "Claim Reward",
+    "progress": "Progress"
+  },
+  "report": {
+    "generate": "Generate Report",
+    "download": "Download PDF",
+    "generating": "Generating..."
+  }
+}
