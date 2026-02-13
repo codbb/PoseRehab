@@ -39,6 +39,35 @@ tmpclaude-*-cwd
 # OS
 .DS_Store
 Thumbs.db
+nul
 
+# Project docs (local only)
 CLAUDE.md
 PRD.md
+
+# ML training data & models
+ml/data/
+ml/models/
+ml/processed/
+processed_data/
+scripts/processed_data/
+scripts/processed_data_full/
+scripts/models/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Large binary assets (ONNX models, WASM runtime, GLB)
+# These should be managed via Git LFS or copied during build
+public/models/
+public/*.wasm
+public/ort.wasm.min.js
+public/ort-wasm-*.mjs
+public/ort-wasm-*.jsep.mjs
+
+# Temp/debug files
+glb-inspection.txt

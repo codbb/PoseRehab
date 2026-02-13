@@ -1,5 +1,20 @@
 export type ExerciseCategory = 'stretching' | 'strength' | 'core' | 'correction' | 'rehabilitation'
 export type ExerciseDifficulty = 'beginner' | 'intermediate' | 'advanced'
+export type ExerciseType = 'realtime' | 'guided'
+
+// 운동-질환 매핑을 위한 타겟 조건 타입
+export type TargetCondition =
+  | 'forward_head'         // 거북목
+  | 'round_shoulder'       // 라운드숄더
+  | 'upper_cross'          // 상부교차증후군
+  | 'shoulder_imbalance'   // 어깨 불균형
+  | 'thoracic_kyphosis'    // 흉추 후만
+  | 'lumbar_lordosis'      // 요추 전만
+  | 'lower_cross'          // 하부교차증후군
+  | 'pelvic_tilt'          // 골반 틀어짐
+  | 'scoliosis'            // 척추측만증
+  | 'bow_legs'             // O다리
+  | 'knock_knees'          // X다리
 
 export interface Exercise {
   id: string
@@ -9,10 +24,14 @@ export interface Exercise {
   descriptionKo: string
   category: ExerciseCategory
   difficulty: ExerciseDifficulty
+  exerciseType: ExerciseType
   duration: number // seconds
   defaultReps: number
   defaultSets: number
+  holdDuration?: number // 유지 시간 (초) - 가이드 운동용
+  restBetweenSets?: number // 세트 사이 휴식 시간 (초)
   targetMuscles: string[]
+  targetConditions?: TargetCondition[] // 이 운동이 도움이 되는 질환/상태
   instructions: string[]
   instructionsKo: string[]
   checkpoints: {
@@ -26,6 +45,12 @@ export interface Exercise {
   thumbnailUrl?: string
   videoUrl?: string
   caloriesPerRep: number
+  benefits?: string[]       // 효과
+  benefitsKo?: string[]
+  precautions?: string[]    // 주의사항
+  precautionsKo?: string[]
+  breathingTip?: string     // 호흡 팁
+  breathingTipKo?: string
 }
 
 export interface ExerciseSession {

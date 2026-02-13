@@ -15,6 +15,7 @@ import {
   SymmetryChart,
 } from '@/components/gait/gait-charts'
 import { useGaitStore } from '@/stores/gait-store'
+import { useUserStore } from '@/stores/user-store'
 import { useTranslation } from '@/hooks/use-translation'
 import { getGaitAnalyzer, resetGaitAnalyzer } from '@/lib/analysis/gait-analyzer'
 import type { Landmark } from '@/types/posture'
@@ -24,6 +25,7 @@ export default function GaitAnalysisPage() {
   const router = useRouter()
   const { language } = useTranslation()
   const analyzerRef = useRef(getGaitAnalyzer())
+  const { profile } = useUserStore()
 
   // 스토어 상태
   const {
@@ -47,13 +49,19 @@ export default function GaitAnalysisPage() {
 
   // 로컬 상태
   const [analysisTime, setAnalysisTime] = useState(0)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const analysisStartTime = useRef<number>(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // 분석 시작
   const handleAnalysisStart = useCallback(() => {
     resetGaitAnalyzer()
     analyzerRef.current = getGaitAnalyzer()
+    // 사용자 키 설정 (보폭 변환에 사용)
+    if (profile?.height) {
+      analyzerRef.current.setUserHeight(profile.height)
+    }
     startSession(currentMode)
     analysisStartTime.current = Date.now()
     setAnalysisTime(0)
@@ -62,7 +70,14 @@ export default function GaitAnalysisPage() {
     timerRef.current = setInterval(() => {
       setAnalysisTime(Math.floor((Date.now() - analysisStartTime.current) / 1000))
     }, 1000)
-  }, [currentMode, startSession])
+  }, [currentMode, startSession, profile])
+
+  // 토스트 표시
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000)
+  }, [])
 
   // 분석 중지
   const handleAnalysisStop = useCallback(() => {
@@ -76,14 +91,21 @@ export default function GaitAnalysisPage() {
 
     // 분석 결과 생성 및 저장
     const result = analyzerRef.current.generateAnalysisResult()
-    if (result && result.totalStrides > 0) {
+    if (result) {
       saveAnalysis(result)
       // 결과 페이지로 이동
       router.push(`/gait-analysis/result?id=${result.id}`)
+    } else {
+      // 데이터 부족 시 토스트 표시
+      showToast(
+        language === 'ko'
+          ? '분석 데이터가 부족합니다. 더 긴 영상을 사용해주세요.'
+          : 'Insufficient analysis data. Please use a longer video.'
+      )
     }
 
     setAnalysisTime(0)
-  }, [setIsActive, saveAnalysis, router])
+  }, [setIsActive, saveAnalysis, router, showToast, language])
 
   // 프레임 처리
   const handleFrame = useCallback(
@@ -134,6 +156,9 @@ export default function GaitAnalysisPage() {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current)
+      }
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current)
       }
     }
   }, [])
@@ -329,6 +354,18 @@ export default function GaitAnalysisPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast */}
+      {toastMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-medium text-white shadow-lg"
+        >
+          {toastMessage}
+        </motion.div>
+      )}
     </MainLayout>
   )
 }

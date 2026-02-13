@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Palette,
+  FolderClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, type Theme, type ColorTheme } from '@/stores/settings-store'
@@ -30,16 +31,23 @@ import { useTranslation } from '@/hooks/use-translation'
 
 const navItems = [
   { href: '/dashboard', icon: Home, labelKey: 'nav.home' },
-  { href: '/posture-analysis', icon: Scan, labelKey: 'nav.postureAnalysis' },
-  { href: '/posture-analysis/history', icon: ClipboardList, labelKey: 'nav.analysisHistory' },
+  // TODO: 추후 업그레이드 후 활성화
+  // { href: '/posture-analysis', icon: Scan, labelKey: 'nav.postureAnalysis' },
+  { href: '/posture-analysis/ai-3d', icon: Brain, labelKey: 'nav.ai3dAnalysis' },
+  { href: '/posture-analysis/ai-3d/history', icon: FolderClock, labelKey: 'nav.ai3dHistory' },
+  // TODO: 추후 업그레이드 후 활성화
+  // { href: '/posture-analysis/history', icon: ClipboardList, labelKey: 'nav.analysisHistory' },
   { href: '/exercise/list', icon: Dumbbell, labelKey: 'nav.exercise' },
   { href: '/exercise/hand-rehab', icon: Hand, labelKey: 'nav.handRehab' },
   { href: '/rom-measurement', icon: Ruler, labelKey: 'nav.romMeasurement' },
   { href: '/gait-analysis', icon: Footprints, labelKey: 'nav.gaitAnalysis' },
-  { href: '/avatar', icon: PersonStanding, labelKey: 'nav.avatar' },
-  { href: '/exercise/games', icon: Gamepad2, labelKey: 'nav.games' },
+  // TODO: 추후 업그레이드 후 활성화
+  // { href: '/avatar', icon: PersonStanding, labelKey: 'nav.avatar' },
+  // TODO: 추후 업그레이드 후 활성화
+  // { href: '/exercise/games', icon: Gamepad2, labelKey: 'nav.games' },
   { href: '/history', icon: History, labelKey: 'nav.history' },
-  { href: '/prediction', icon: Brain, labelKey: 'nav.prediction' },
+  // TODO: 추후 업그레이드 후 활성화
+  // { href: '/prediction', icon: Brain, labelKey: 'nav.prediction' },
   { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
 ]
 
@@ -107,9 +115,12 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
-          // Exact match for specific routes, prefix match for parent routes (except posture-analysis which has sub-routes)
+          // Exact match for specific routes, prefix match for parent routes
+          // Handle special cases for routes with sub-routes that should have exact matches
           const isActive = item.href === '/posture-analysis'
             ? pathname === '/posture-analysis'
+            : item.href === '/posture-analysis/ai-3d'
+            ? pathname === '/posture-analysis/ai-3d'
             : pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link

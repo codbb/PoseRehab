@@ -82,14 +82,14 @@ const PAIN_AREA_MAPPINGS: PainAreaMapping[] = [
 ]
 
 const POSTURE_TRANSLATIONS: Record<PainRelatedPosture, { en: string; ko: string }> = {
-  forward_head: { en: 'Forward Head', ko: '거북목' },
-  rounded_shoulders: { en: 'Rounded Shoulders', ko: '둥근 어깨' },
-  kyphosis: { en: 'Kyphosis', ko: '척추후만증' },
-  lordosis: { en: 'Lordosis', ko: '척추전만증' },
-  scoliosis: { en: 'Scoliosis', ko: '척추측만증' },
-  pelvic_tilt: { en: 'Pelvic Tilt', ko: '골반 기울어짐' },
-  bow_legs: { en: 'Bow Legs', ko: 'O자 다리' },
-  knock_knees: { en: 'Knock Knees', ko: 'X자 다리' },
+  forward_head: { en: 'Forward head posture', ko: '목 전방 기울기 증가' },
+  rounded_shoulders: { en: 'Shoulder forward posture', ko: '어깨 전방 돌출' },
+  kyphosis: { en: 'Increased thoracic curve', ko: '흉추 만곡 증가' },
+  lordosis: { en: 'Increased lumbar curve', ko: '요추 만곡 증가' },
+  scoliosis: { en: 'Lateral spine deviation', ko: '척추 측면 편차' },
+  pelvic_tilt: { en: 'Pelvic tilt', ko: '골반 기울기 증가' },
+  bow_legs: { en: 'Outward leg alignment', ko: '다리 외측 정렬' },
+  knock_knees: { en: 'Inward leg alignment', ko: '다리 내측 정렬' },
 }
 
 const EXERCISE_RECOMMENDATIONS: Record<PainRelatedPosture, { en: string[]; ko: string[] }> = {

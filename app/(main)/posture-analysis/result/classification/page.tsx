@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { Dumbbell } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/hooks/use-translation'
 import { usePostureStore } from '@/stores/posture-store'
@@ -655,6 +657,28 @@ export default function ClassificationPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 운동하러 가기 버튼 */}
+      <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-secondary/5">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary">
+                {language === 'ko' ? '분석 결과 기반 맞춤 운동' : 'Personalized Exercises Based on Analysis'}
+              </h3>
+              <p className="text-sm text-text-secondary mt-1">
+                {language === 'ko'
+                  ? '자세 분석 결과에 따른 추천 운동을 확인하세요'
+                  : 'Check recommended exercises based on your posture analysis'}
+              </p>
+            </div>
+            <Button onClick={() => router.push('/exercise/list')} size="lg" className="w-full md:w-auto">
+              <Dumbbell className="mr-2 h-5 w-5" />
+              {language === 'ko' ? '운동하러 가기' : 'Start Exercises'}
+            </Button>
           </div>
         </CardContent>
       </Card>

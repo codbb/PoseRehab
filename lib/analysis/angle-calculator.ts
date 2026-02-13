@@ -178,3 +178,121 @@ export function calculateBodyBalance(landmarks: Landmark[]): {
 
   return { centerOfMassX, centerOfMassY, isBalanced }
 }
+
+// ============================================
+// O다리 / X다리 분석 (정면 뷰)
+// ============================================
+export type LegAlignmentSeverity = 'none' | 'mild' | 'moderate' | 'severe'
+
+// LegType과 호환되는 타입 (types/analysis-result.ts와 일치)
+export type LegAlignmentType = 'normal' | 'o_legs' | 'x_legs'
+
+export interface LegAlignmentResult {
+  leftAngle: number       // Hip-Knee-Ankle 각도 (왼쪽)
+  rightAngle: number      // Hip-Knee-Ankle 각도 (오른쪽)
+  overallAngle: number    // 평균 각도
+  type: LegAlignmentType
+  severity: LegAlignmentSeverity
+  kneeDistance: number    // 무릎 간 거리
+  ankleDistance: number   // 발목 간 거리
+}
+
+export function calculateLegAlignment(landmarks: Landmark[]): LegAlignmentResult {
+  const leftHip = landmarks[POSE_LANDMARKS.LEFT_HIP]
+  const leftKnee = landmarks[POSE_LANDMARKS.LEFT_KNEE]
+  const leftAnkle = landmarks[POSE_LANDMARKS.LEFT_ANKLE]
+  const rightHip = landmarks[POSE_LANDMARKS.RIGHT_HIP]
+  const rightKnee = landmarks[POSE_LANDMARKS.RIGHT_KNEE]
+  const rightAnkle = landmarks[POSE_LANDMARKS.RIGHT_ANKLE]
+
+  // Hip-Knee-Ankle 각도 계산
+  const leftAngle = calculateAngle(leftHip, leftKnee, leftAnkle)
+  const rightAngle = calculateAngle(rightHip, rightKnee, rightAnkle)
+  const overallAngle = (leftAngle + rightAngle) / 2
+
+  // 무릎 간 거리와 발목 간 거리
+  const kneeDistance = calculateDistance(leftKnee, rightKnee)
+  const ankleDistance = calculateDistance(leftAnkle, rightAnkle)
+
+  // O다리 / X다리 판정
+  // 정상: 170~180°
+  // O다리: < 170° (무릎이 바깥으로)
+  // X다리: > 180° 또는 무릎간 거리 < 발목간 거리
+  let type: LegAlignmentType = 'normal'
+  let severity: LegAlignmentSeverity = 'none'
+
+  if (overallAngle < 170) {
+    // O다리 (Genu Varum)
+    type = 'o_legs'
+    if (overallAngle >= 165) severity = 'mild'
+    else if (overallAngle >= 155) severity = 'moderate'
+    else severity = 'severe'
+  } else if (overallAngle > 185 || kneeDistance < ankleDistance * 0.8) {
+    // X다리 (Genu Valgum)
+    type = 'x_legs'
+    if (overallAngle <= 190) severity = 'mild'
+    else if (overallAngle <= 200) severity = 'moderate'
+    else severity = 'severe'
+  }
+
+  return {
+    leftAngle,
+    rightAngle,
+    overallAngle,
+    type,
+    severity,
+    kneeDistance,
+    ankleDistance,
+  }
+}
+
+// ============================================
+// 라운드숄더 분석 (측면 뷰)
+// ============================================
+export interface RoundShoulderResult {
+  earShoulderOffset: number    // 귀-어깨 수평 거리 (양수 = 어깨가 앞으로)
+  offsetRatio: number          // 귀-어깨 거리 / 어깨-골반 거리 비율
+  isRoundShoulder: boolean
+  severity: LegAlignmentSeverity
+}
+
+export function calculateRoundShoulder(landmarks: Landmark[], side: 'left' | 'right' = 'left'): RoundShoulderResult {
+  // 측면 뷰에서 귀와 어깨의 x 좌표 차이로 판단
+  const ear = side === 'left'
+    ? landmarks[POSE_LANDMARKS.LEFT_EAR]
+    : landmarks[POSE_LANDMARKS.RIGHT_EAR]
+  const shoulder = side === 'left'
+    ? landmarks[POSE_LANDMARKS.LEFT_SHOULDER]
+    : landmarks[POSE_LANDMARKS.RIGHT_SHOULDER]
+  const hip = side === 'left'
+    ? landmarks[POSE_LANDMARKS.LEFT_HIP]
+    : landmarks[POSE_LANDMARKS.RIGHT_HIP]
+
+  // 귀-어깨 수평 거리 (양수 = 어깨가 귀보다 앞으로 나옴)
+  // 정면을 보고 있다면 x 좌표 차이, 측면이면 z 좌표 사용 필요
+  // 측면 뷰에서는 x 좌표가 앞뒤를 나타냄
+  const earShoulderOffset = shoulder.x - ear.x
+
+  // 어깨-골반 거리로 정규화
+  const shoulderHipDistance = calculateDistance(shoulder, hip)
+  const offsetRatio = Math.abs(earShoulderOffset) / shoulderHipDistance
+
+  // 라운드숄더 판정
+  // offsetRatio가 0.1 이상이면 라운드숄더로 판단
+  let isRoundShoulder = false
+  let severity: LegAlignmentSeverity = 'none'
+
+  if (offsetRatio > 0.05 && earShoulderOffset > 0) {
+    isRoundShoulder = true
+    if (offsetRatio <= 0.1) severity = 'mild'
+    else if (offsetRatio <= 0.2) severity = 'moderate'
+    else severity = 'severe'
+  }
+
+  return {
+    earShoulderOffset,
+    offsetRatio,
+    isRoundShoulder,
+    severity,
+  }
+}

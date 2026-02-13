@@ -29,6 +29,7 @@ export type PostureType =
   | 'normal'
   | 'forward_head'
   | 'rounded_shoulders'
+  | 'round_shoulder'
   | 'kyphosis'
   | 'lordosis'
   | 'scoliosis'
@@ -82,6 +83,7 @@ export interface PostureAnalysisResult {
     description: string
     descriptionKo: string
     exercises: string[]
+    exerciseIds?: string[]
   }[]
   landmarks?: Landmark[]
   imageData?: string // base64

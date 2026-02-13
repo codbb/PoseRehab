@@ -6,8 +6,19 @@ import {
   calculatePelvisTilt,
   calculateKneeAlignment,
   calculateBodyBalance,
+  calculateLegAlignment,
+  calculateRoundShoulder,
+  type LegAlignmentSeverity,
 } from './angle-calculator'
 import { generateId } from '@/lib/utils'
+
+// 심각도별 점수 감점
+const SEVERITY_DEDUCTION: Record<LegAlignmentSeverity, number> = {
+  none: 0,
+  mild: 15,
+  moderate: 30,
+  severe: 50,
+}
 
 function scoreToStatus(score: number): 'good' | 'warning' | 'poor' {
   if (score >= 80) return 'good'
@@ -151,37 +162,49 @@ export function analyzePosture(
       : '골반 정렬에 주의가 필요합니다',
   }
 
-  // Knee analysis
-  const kneeData = calculateKneeAlignment(landmarks)
-  const kneeAngleScore = (normalizeAngle(kneeData.leftKneeAngle, 180, 20) +
-    normalizeAngle(kneeData.rightKneeAngle, 180, 20)) / 2
-  const valgusScore = normalizeAngle(Math.abs(kneeData.valgusAngle) * 100, 0, 5)
-  const kneeScore = (kneeAngleScore + valgusScore) / 2
+  // Knee analysis with improved O-leg / X-leg detection
+  const legAlignment = calculateLegAlignment(landmarks)
+  const kneeAngleScore = normalizeAngle(legAlignment.overallAngle, 175, 20)
+  const kneeScore = Math.max(0, kneeAngleScore - SEVERITY_DEDUCTION[legAlignment.severity])
 
-  if (kneeData.valgusAngle < -0.03) {
+  // O다리 / X다리 판정
+  if (legAlignment.type === 'o_legs') {
     postureTypes.push('bow_legs')
-  } else if (kneeData.valgusAngle > 0.03) {
+  } else if (legAlignment.type === 'x_legs') {
     postureTypes.push('knock_knees')
+  }
+
+  // 피드백 메시지 생성
+  let kneeFeedback = 'Knee alignment is good'
+  let kneeFeedbackKo = '무릎 정렬이 좋습니다'
+  if (legAlignment.type === 'o_legs') {
+    const severityText = { mild: 'Mild', moderate: 'Moderate', severe: 'Severe', none: '' }
+    const severityTextKo = { mild: '경미한', moderate: '중간 정도의', severe: '심한', none: '' }
+    kneeFeedback = `${severityText[legAlignment.severity]} bow legs detected (O-legs) - Hip-Knee-Ankle angle: ${legAlignment.overallAngle.toFixed(1)}°`
+    kneeFeedbackKo = `${severityTextKo[legAlignment.severity]} O다리(내반슬)가 감지되었습니다 - 각도: ${legAlignment.overallAngle.toFixed(1)}°`
+  } else if (legAlignment.type === 'x_legs') {
+    const severityText = { mild: 'Mild', moderate: 'Moderate', severe: 'Severe', none: '' }
+    const severityTextKo = { mild: '경미한', moderate: '중간 정도의', severe: '심한', none: '' }
+    kneeFeedback = `${severityText[legAlignment.severity]} knock knees detected (X-legs) - Hip-Knee-Ankle angle: ${legAlignment.overallAngle.toFixed(1)}°`
+    kneeFeedbackKo = `${severityTextKo[legAlignment.severity]} X다리(외반슬)가 감지되었습니다 - 각도: ${legAlignment.overallAngle.toFixed(1)}°`
   }
 
   const kneeAnalysis: BodyPartAnalysis = {
     name: 'Knees',
     nameKo: '무릎',
     score: kneeScore,
-    angle: (kneeData.leftKneeAngle + kneeData.rightKneeAngle) / 2,
-    idealAngle: 180,
-    deviation: Math.abs(kneeData.valgusAngle) * 100,
+    angle: legAlignment.overallAngle,
+    idealAngle: 175,
+    deviation: Math.abs(175 - legAlignment.overallAngle),
     status: scoreToStatus(kneeScore),
-    feedback: kneeScore >= 80
-      ? 'Knee alignment is good'
-      : kneeScore >= 60
-      ? 'Slight knee misalignment detected'
-      : 'Knee alignment needs attention',
-    feedbackKo: kneeScore >= 80
-      ? '무릎 정렬이 좋습니다'
-      : kneeScore >= 60
-      ? '약간의 무릎 불균형이 감지되었습니다'
-      : '무릎 정렬에 주의가 필요합니다',
+    feedback: kneeFeedback,
+    feedbackKo: kneeFeedbackKo,
+  }
+
+  // Round Shoulder analysis (측면 뷰에서 더 정확하지만, 정면에서도 어깨 전방 돌출 감지 가능)
+  const roundShoulderData = calculateRoundShoulder(landmarks, 'left')
+  if (roundShoulderData.isRoundShoulder) {
+    postureTypes.push('round_shoulder')
   }
 
   // Calculate overall score
@@ -248,57 +271,145 @@ export function analyzePosture(
         },
         knock_knees: {
           name: 'Knock Knees (Genu Valgum)',
-          nameKo: 'X다리',
+          nameKo: 'X다리 (외반슬)',
           description: 'Knees angle inward when standing',
-          descriptionKo: '서 있을 때 무릎이 안쪽으로 기울어집니다',
+          descriptionKo: '서 있을 때 무릎이 안쪽으로 모입니다',
         },
+        round_shoulder: {
+          name: 'Round Shoulder',
+          nameKo: '라운드숄더 (둥근 어깨)',
+          description: 'Shoulders are positioned forward of the ears',
+          descriptionKo: '어깨가 귀보다 앞으로 나와 있는 자세입니다',
+        },
+      }
+      // Calculate probability based on deviation severity
+      let probability = 75
+      if (type === 'forward_head') {
+        probability = Math.min(95, Math.round(50 + headForwardAngle * 2))
+      } else if (type === 'rounded_shoulders') {
+        probability = Math.min(95, Math.round(50 + (90 - shoulderData.forwardAngle) * 2))
+      } else if (type === 'kyphosis') {
+        probability = Math.min(95, Math.round(50 + (170 - spineData.kyphosisAngle)))
+      } else if (type === 'lordosis') {
+        probability = Math.min(95, Math.round(50 + (170 - spineData.lordosisAngle)))
+      } else if (type === 'scoliosis') {
+        probability = Math.min(95, Math.round(50 + Math.abs(spineData.lateralDeviation) * 500))
+      } else if (type === 'pelvic_tilt') {
+        probability = Math.min(95, Math.round(50 + Math.abs(pelvisData.lateralTilt) * 500))
+      } else if (type === 'round_shoulder') {
+        const severityProbability = { none: 50, mild: 65, moderate: 80, severe: 95 }
+        probability = severityProbability[roundShoulderData.severity]
+      }
+      if (type === 'bow_legs' && legAlignment.type === 'o_legs') {
+        const severityProbability = { none: 50, mild: 65, moderate: 80, severe: 95 }
+        probability = severityProbability[legAlignment.severity]
+      } else if (type === 'knock_knees' && legAlignment.type === 'x_legs') {
+        const severityProbability = { none: 50, mild: 65, moderate: 80, severe: 95 }
+        probability = severityProbability[legAlignment.severity]
+      } else if (type === 'round_shoulder' && roundShoulderData.isRoundShoulder) {
+        const severityProbability = { none: 50, mild: 65, moderate: 80, severe: 95 }
+        probability = severityProbability[roundShoulderData.severity]
       }
       return {
         ...conditions[type],
-        probability: Math.round(70 + Math.random() * 20),
+        probability,
       }
     })
 
-  // Generate recommendations
+  // Generate recommendations with exercise IDs for linking
+  interface Recommendation {
+    title: string
+    titleKo: string
+    description: string
+    descriptionKo: string
+    exercises: string[]
+    exerciseIds: string[]
+  }
+
   const recommendations = postureTypes
     .filter((type) => type !== 'normal')
     .slice(0, 3)
     .map((type) => {
-      const recs: Record<string, { title: string; titleKo: string; description: string; descriptionKo: string; exercises: string[] }> = {
+      const recs: Record<string, Recommendation> = {
         forward_head: {
           title: 'Neck Exercises',
           titleKo: '목 운동',
           description: 'Strengthen neck muscles and improve head position',
           descriptionKo: '목 근육을 강화하고 머리 위치를 개선합니다',
-          exercises: ['Chin Tucks', 'Neck Stretches', 'Shoulder Blade Squeezes'],
+          exercises: ['Chin Tucks', 'Neck Stretches', 'Upper Trap Stretch'],
+          exerciseIds: ['chin_tuck', 'neck_stretch', 'upper_trap_stretch'],
         },
         rounded_shoulders: {
           title: 'Shoulder Exercises',
           titleKo: '어깨 운동',
           description: 'Open up chest and strengthen upper back',
           descriptionKo: '가슴을 열고 상부 등을 강화합니다',
-          exercises: ['Wall Angels', 'Doorway Stretches', 'Rows'],
+          exercises: ['Wall Slide', 'Chest Stretch', 'Rows'],
+          exerciseIds: ['wall_slide', 'chest_stretch', 'barbell_row'],
         },
         kyphosis: {
           title: 'Upper Back Exercises',
           titleKo: '상부 등 운동',
           description: 'Strengthen upper back muscles',
           descriptionKo: '상부 등 근육을 강화합니다',
-          exercises: ['Superman Exercise', 'Cat-Cow Stretch', 'Thoracic Extensions'],
+          exercises: ['Cat-Cow Stretch', 'Wall Slide', 'Chest Stretch'],
+          exerciseIds: ['cat_cow', 'wall_slide', 'chest_stretch'],
         },
         lordosis: {
           title: 'Core & Hip Exercises',
           titleKo: '코어 & 골반 운동',
           description: 'Strengthen core and stretch hip flexors',
           descriptionKo: '코어를 강화하고 고관절 굴근을 스트레칭합니다',
-          exercises: ['Pelvic Tilts', 'Dead Bug', 'Hip Flexor Stretches'],
+          exercises: ['Pelvic Tilts', 'Dead Bug', 'Hamstring Stretch'],
+          exerciseIds: ['pelvic_tilt', 'dead_bug', 'hamstring_stretch'],
+        },
+        scoliosis: {
+          title: 'Spine Alignment Exercises',
+          titleKo: '척추 정렬 운동',
+          description: 'Improve spine alignment and core stability',
+          descriptionKo: '척추 정렬과 코어 안정성을 향상시킵니다',
+          exercises: ['Cat-Cow Stretch', 'Side Lunge', 'Dead Bug'],
+          exerciseIds: ['cat_cow', 'side_lunge', 'dead_bug'],
+        },
+        pelvic_tilt: {
+          title: 'Pelvis & Hip Exercises',
+          titleKo: '골반 & 고관절 운동',
+          description: 'Correct pelvis alignment and strengthen hip muscles',
+          descriptionKo: '골반 정렬을 교정하고 고관절 근육을 강화합니다',
+          exercises: ['Pelvic Tilt', 'Clamshell', 'Hip Abduction'],
+          exerciseIds: ['pelvic_tilt', 'clamshell', 'hip_abduction'],
+        },
+        bow_legs: {
+          title: 'Inner Thigh & Hip Exercises',
+          titleKo: '내전근 & 고관절 운동',
+          description: 'Strengthen inner thigh muscles and improve hip alignment',
+          descriptionKo: '내전근을 강화하고 고관절 정렬을 개선합니다',
+          exercises: ['Side Lunge', 'Clamshell', 'IT Band Stretch'],
+          exerciseIds: ['side_lunge', 'clamshell', 'it_band_stretch'],
+        },
+        knock_knees: {
+          title: 'Hip Abductor Exercises',
+          titleKo: '고관절 외전근 운동',
+          description: 'Strengthen outer hip and glute muscles',
+          descriptionKo: '고관절 외측과 둔근을 강화합니다',
+          exercises: ['Hip Abduction', 'Clamshell', 'Side Lunge'],
+          exerciseIds: ['hip_abduction', 'clamshell', 'side_lunge'],
+        },
+        round_shoulder: {
+          title: 'Chest & Upper Back Exercises',
+          titleKo: '가슴 & 상부 등 운동',
+          description: 'Open chest and strengthen upper back muscles',
+          descriptionKo: '가슴을 열고 상부 등 근육을 강화합니다',
+          exercises: ['Chest Stretch', 'Wall Slide', 'Barbell Row'],
+          exerciseIds: ['chest_stretch', 'wall_slide', 'barbell_row'],
         },
         default: {
           title: 'General Posture Exercises',
           titleKo: '일반 자세 운동',
           description: 'Improve overall posture',
           descriptionKo: '전반적인 자세를 개선합니다',
-          exercises: ['Plank', 'Bridge', 'Wall Sits'],
+          exercises: ['Plank', 'Bridge', 'Squat'],
+          exerciseIds: ['plank', 'bridge', 'squat'],
         },
       }
       return recs[type] || recs.default

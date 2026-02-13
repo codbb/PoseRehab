@@ -47,6 +47,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'posture-ai-settings',
+      version: 1,
     }
   )
 )

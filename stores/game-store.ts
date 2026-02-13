@@ -32,7 +32,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         set((state) => ({
-          gameScores: [...state.gameScores, newScore],
+          gameScores: [...state.gameScores, newScore].slice(-500),
         }))
 
         return newScore
@@ -77,6 +77,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'posture-ai-games',
+      version: 1,
     }
   )
 )

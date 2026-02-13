@@ -94,11 +94,15 @@ export const useGaitStore = create<GaitState>()(
           newHistory.shift()
         }
 
-        // 세션에도 추가
+        // 세션에도 추가 (프레임 수 제한으로 메모리 관리)
         if (currentSession) {
+          const maxSessionFrames = maxFrameHistory * 2
+          const sessionFrames = [...currentSession.frames, frame]
           const updatedSession = {
             ...currentSession,
-            frames: [...currentSession.frames, frame],
+            frames: sessionFrames.length > maxSessionFrames
+              ? sessionFrames.slice(-maxSessionFrames)
+              : sessionFrames,
           }
           set({
             frameHistory: newHistory,

@@ -139,20 +139,22 @@ export const useChallengeStore = create<ChallengeState>()(
       },
 
       claimReward: (challengeId) => {
-        const challenge = get().challenges.find((c) => c.id === challengeId)
-        if (!challenge || !challenge.completed || challenge.claimedAt) {
-          return 0
-        }
-
-        set((state) => ({
-          challenges: state.challenges.map((c) =>
-            c.id === challengeId
-              ? { ...c, claimedAt: new Date().toISOString() }
-              : c
-          ),
-        }))
-
-        return challenge.reward
+        let reward = 0
+        set((state) => {
+          const challenge = state.challenges.find((c) => c.id === challengeId)
+          if (!challenge || !challenge.completed || challenge.claimedAt) {
+            return state
+          }
+          reward = challenge.reward
+          return {
+            challenges: state.challenges.map((c) =>
+              c.id === challengeId
+                ? { ...c, claimedAt: new Date().toISOString() }
+                : c
+            ),
+          }
+        })
+        return reward
       },
 
       getTodayChallenges: () => {
@@ -172,6 +174,7 @@ export const useChallengeStore = create<ChallengeState>()(
     }),
     {
       name: 'posture-ai-challenges',
+      version: 1,
     }
   )
 )

@@ -118,6 +118,17 @@ export interface GaitAnomaly {
   affectedSide?: 'left' | 'right' | 'both'
 }
 
+// 차트 데이터 (결과 페이지 렌더링용)
+export interface GaitChartData {
+  timestamps: number[]
+  leftKneeAngles: number[]
+  rightKneeAngles: number[]
+  leftHipAngles: number[]
+  rightHipAngles: number[]
+  leftAnkleHeights: number[]
+  rightAnkleHeights: number[]
+}
+
 // 보행 분석 결과
 export interface GaitAnalysisResult {
   id: string
@@ -135,6 +146,8 @@ export interface GaitAnalysisResult {
   anomalies: GaitAnomaly[]
   overallScore: number // 0-100
   recommendations: GaitRecommendation[]
+  chartData?: GaitChartData
+  isSideView?: boolean
 }
 
 // 권장사항

@@ -442,6 +442,7 @@ export function generateDetailedResult(
   const tagMap: Record<string, string> = {
     forward_head: '거북목',
     rounded_shoulders: '굽은어깨',
+    round_shoulder: '라운드숄더',
     kyphosis: '굽은등',
     lordosis: '활등',
     scoliosis: '측만',

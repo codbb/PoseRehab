@@ -41,6 +41,13 @@ export function GaitCamera({
   const lastFrameTimeRef = useRef<number>(0)
   const cameraInitializedRef = useRef(false)
   const analysisLoopRef = useRef<number | null>(null)
+  const onAnalysisStopRef = useRef(onAnalysisStop)
+  const videoEndedRef = useRef(false)
+
+  // Keep ref in sync to avoid stale closures in rAF loop
+  useEffect(() => {
+    onAnalysisStopRef.current = onAnalysisStop
+  }, [onAnalysisStop])
 
   const [videoDimensions, setVideoDimensions] = useState({ width: 640, height: 480 })
   const [uploadedVideoSrc, setUploadedVideoSrc] = useState<string | null>(null)
@@ -157,6 +164,7 @@ export function GaitCamera({
 
     const video = uploadedVideoRef.current
     let isActive = true
+    videoEndedRef.current = false
 
     console.log('[GaitCamera] Starting video analysis loop...')
     console.log('[GaitCamera] Video readyState:', video.readyState)
@@ -181,6 +189,12 @@ export function GaitCamera({
         }
       } else if (currentVideo.ended) {
         setDebugInfo('Video ended')
+        // 비디오 끝 → 자동으로 분석 중지 호출
+        if (!videoEndedRef.current) {
+          videoEndedRef.current = true
+          console.log('[GaitCamera] Video ended, auto-stopping analysis')
+          onAnalysisStopRef.current?.()
+        }
         return
       } else {
         setDebugInfo(`Waiting: readyState=${currentVideo.readyState}, paused=${currentVideo.paused}`)
@@ -386,7 +400,6 @@ export function GaitCamera({
                 <video
                   ref={uploadedVideoRef}
                   src={uploadedVideoSrc}
-                  loop
                   muted
                   playsInline
                   className="h-full w-full object-contain"

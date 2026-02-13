@@ -54,37 +54,37 @@ export const useExerciseStore = create<ExerciseState>()(
         })),
 
       endSession: () => {
-        const state = get()
-        if (!state.currentSession) return null
+        const session = get().currentSession
+        if (!session) return null
 
         const endTime = new Date().toISOString()
         const record: ExerciseRecord = {
           id: crypto.randomUUID(),
-          ...state.currentSession,
+          ...session,
           endTime,
           duration: Math.floor(
-            (new Date(endTime).getTime() - new Date(state.currentSession.startTime).getTime()) / 1000
+            (new Date(endTime).getTime() - new Date(session.startTime).getTime()) / 1000
           ),
           averageAccuracy:
-            state.currentSession.accuracy.length > 0
-              ? state.currentSession.accuracy.reduce((a, b) => a + b, 0) /
-                state.currentSession.accuracy.length
+            session.accuracy.length > 0
+              ? session.accuracy.reduce((a, b) => a + b, 0) /
+                session.accuracy.length
               : 0,
           date: new Date().toISOString().split('T')[0],
         }
 
-        set((state) => ({
+        set({
           currentExercise: null,
           currentSession: null,
-          exerciseRecords: [record, ...state.exerciseRecords],
-        }))
+          exerciseRecords: [record, ...get().exerciseRecords].slice(0, 500),
+        })
 
         return record
       },
 
       addRecord: (record) =>
         set((state) => ({
-          exerciseRecords: [record, ...state.exerciseRecords],
+          exerciseRecords: [record, ...state.exerciseRecords].slice(0, 500),
         })),
 
       getRecordsByDate: (date) => {
@@ -106,6 +106,7 @@ export const useExerciseStore = create<ExerciseState>()(
     }),
     {
       name: 'posture-ai-exercise',
+      version: 1,
     }
   )
 )

@@ -1,0 +1,8 @@
+# AI Hub Fitness Pose Dataset Training Dependencies
+# pip install -r requirements.txt
+
+numpy>=1.21.0
+scikit-learn>=1.0.0
+torch>=2.0.0
+onnx>=1.12.0
+onnxruntime>=1.12.0

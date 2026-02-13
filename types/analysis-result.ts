@@ -312,6 +312,139 @@ export const EPOSE_TYPE_LABELS: Record<EPosePostureType, { en: string; ko: strin
   },
 }
 
+// ── Multi-View 3D Analysis Types (ONNX Model Based) ──
+
+export type ViewAngle = 'front' | 'side' | 'back'
+
+export interface MultiViewImage {
+  viewAngle: ViewAngle
+  imageDataUrl: string | null
+  landmarks2D: PoseLandmark[] | null
+  pose3D: {
+    joints: { name: string; x: number; y: number; z: number }[]
+    confidence: number
+  } | null
+  status: 'empty' | 'uploaded' | 'detecting' | 'detected' | 'error'
+  errorMessage?: string
+}
+
+export interface Pose3DBodyPartRisk {
+  name: string
+  nameKo: string
+  measuredValue: number
+  unit: string
+  threshold: { warning: number; danger: number }
+  level: 'normal' | 'warning' | 'danger'
+  description: string
+  descriptionKo: string
+}
+
+export interface Pose3DPredictedCondition {
+  name: string
+  nameKo: string
+  probability: number
+  severity: 'low' | 'medium' | 'high'
+  description: string
+  descriptionKo: string
+  relatedParts: string[]
+}
+
+export interface Pose3DRecommendation {
+  title: string
+  titleKo: string
+  description: string
+  descriptionKo: string
+  exercises: { id: string; name: string; nameKo: string }[]
+  priority: 'low' | 'medium' | 'high'
+}
+
+export interface FrontViewMetrics {
+  shoulderHeightDifference: number
+  shoulderTiltDirection: 'left' | 'right' | 'balanced'
+  pelvisHeightDifference: number
+  pelvisTiltDirection: 'left' | 'right' | 'balanced'
+  shoulderRisk: Pose3DBodyPartRisk
+  pelvisRisk: Pose3DBodyPartRisk
+  // O다리/X다리 분석
+  legAlignment?: {
+    type: LegType
+    leftKneeAngle: number  // 왼쪽 정면평면 무릎 편차 각도 (°)
+    rightKneeAngle: number // 오른쪽 정면평면 무릎 편차 각도 (°)
+    kneeGap: number        // 무릎 간격 (정규화)
+    ankleGap: number       // 발목 간격 (정규화)
+  }
+  legRisk?: Pose3DBodyPartRisk
+}
+
+export interface SideViewMetrics {
+  neckForwardAngle: number
+  thoracicKyphosisAngle: number
+  lumbarLordosisAngle: number
+  spineClassification: 'normal' | 'kyphosis' | 'lordosis' | 'kyphosis_lordosis' | 'flat_back'
+  neckRisk: Pose3DBodyPartRisk
+  spineRisk: Pose3DBodyPartRisk
+  thoracicKyphosisRisk?: Pose3DBodyPartRisk  // 흉추 후만 리스크 (분리)
+  lumbarLordosisRisk?: Pose3DBodyPartRisk    // 요추 전만 리스크 (분리)
+  // 라운드숄더 분석
+  shoulderProtraction?: {
+    angle: number        // 어깨 전방 돌출 각도
+    isRoundShoulder: boolean
+  }
+  roundShoulderRisk?: Pose3DBodyPartRisk
+}
+
+export interface BackViewMetrics {
+  spineLateralDeviation: number
+  scoliosisDirection: 'left' | 'right' | 'none'
+  scapulaAsymmetry: number
+  spineRisk: Pose3DBodyPartRisk
+  scapulaRisk: Pose3DBodyPartRisk
+}
+
+export interface MultiView3DAnalysisResult {
+  frontMetrics: FrontViewMetrics | null
+  sideMetrics: SideViewMetrics | null
+  backMetrics: BackViewMetrics | null
+  overallScore: number
+  frontScore: number | null
+  sideScore: number | null
+  backScore: number | null
+  conditions: Pose3DPredictedCondition[]
+  recommendations: Pose3DRecommendation[]
+}
+
+// AI 3D 분석 히스토리 엔트리 (변화 추적용)
+export interface AI3DAnalysisHistoryEntry {
+  id: string
+  timestamp: string
+  overallScore: number
+  frontScore: number | null
+  sideScore: number | null
+  backScore: number | null
+  metrics: {
+    neckForwardAngle?: number
+    shoulderTilt?: number
+    pelvisTilt?: number
+    thoracicKyphosis?: number
+    lumbarLordosis?: number
+    spineLateralDeviation?: number
+    scapulaAsymmetry?: number
+    roundShoulderAngle?: number
+    legAlignmentType?: LegType
+  }
+  // 상세 결과 저장용 (기록 페이지에서 다시 보기 위함)
+  images?: {
+    front?: string  // base64 이미지
+    side?: string
+    back?: string
+  }
+  conditions?: Pose3DPredictedCondition[]
+  recommendations?: Pose3DRecommendation[]
+  frontMetrics?: FrontViewMetrics | null
+  sideMetrics?: SideViewMetrics | null
+  backMetrics?: BackViewMetrics | null
+}
+
 // ePose 측정 항목 라벨 및 이상 범위
 export const EPOSE_MEASUREMENT_LABELS = {
   leftRight: {

@@ -13,6 +13,7 @@ import type {
   GaitAnomaly,
   GaitAnalysisResult,
   GaitRecommendation,
+  GaitChartData,
 } from '@/types/gait'
 import { GAIT_LANDMARKS } from '@/types/gait'
 import {
@@ -71,10 +72,22 @@ function movingAverage(values: number[], windowSize: number): number {
 }
 
 /**
- * 랜드마크의 visibility가 충분한지 확인합니다.
+ * 배열을 이동 평균으로 smoothing합니다.
  */
-function isLandmarkVisible(landmark: Landmark, threshold: number = 0.5): boolean {
-  return (landmark.visibility ?? 0) >= threshold
+function smoothSignal(arr: number[], windowSize: number = 5): number[] {
+  if (arr.length < windowSize) return [...arr]
+  const result: number[] = []
+  const half = Math.floor(windowSize / 2)
+  for (let i = 0; i < arr.length; i++) {
+    const start = Math.max(0, i - half)
+    const end = Math.min(arr.length - 1, i + half)
+    let sum = 0
+    for (let j = start; j <= end; j++) {
+      sum += arr[j]
+    }
+    result.push(sum / (end - start + 1))
+  }
+  return result
 }
 
 /**
@@ -84,15 +97,36 @@ export class GaitAnalyzer {
   private frameBuffer: GaitFrame[] = []
   private maxBufferSize: number
 
+  // 전체 프레임 데이터 (차트용, rolling 하지 않음)
+  private allFrameData: Array<{
+    timestamp: number
+    leftKneeAngle: number
+    rightKneeAngle: number
+    leftHipAngle: number
+    rightHipAngle: number
+    leftAnkleY: number
+    rightAnkleY: number
+  }> = []
+
   // 발목 Y 위치 히스토리 (보행 단계 감지용)
   private leftAnkleYHistory: number[] = []
   private rightAnkleYHistory: number[] = []
+  private leftAnkleYTimestamps: number[] = []
+  private rightAnkleYTimestamps: number[] = []
+
+  // 무릎 각도 히스토리 (stride 감지 - primary method)
+  private leftKneeAngleHistory: number[] = []
+  private rightKneeAngleHistory: number[] = []
+  private kneeAngleTimestamps: number[] = []
+
+  // 마지막 무릎 peak 시간
+  private lastKneePeakTime = { left: 0, right: 0 }
 
   // Heel strike/Toe off 타이밍
   private lastHeelStrike = { left: 0, right: 0 }
   private lastToeOff = { left: 0, right: 0 }
 
-  // 보폭 측정
+  // 보폭 측정 (정규화 좌표 단위)
   private leftStrides: number[] = []
   private rightStrides: number[] = []
 
@@ -111,10 +145,35 @@ export class GaitAnalyzer {
   }
 
   // 발목 최저점 (지면 기준선)
-  private groundLevel = { left: 1, right: 1 }
+  private groundLevel = { left: 0, right: 0 }
+  private groundLevelInitialized = false
+
+  // 정규화 좌표 → 실제 거리(m) 변환 스케일
+  private pixelToMeterScale = 1
+  private legLengthSamples: number[] = []
+
+  // 사용자 키 (cm), 설정 가능
+  private userHeightCm = 170
+
+  // 측면 촬영 감지
+  private isSideView = false
+  private viewDirection: 'left' | 'right' | 'front' = 'front'
+  private shoulderSpreadSamples: number[] = []
+
+  // 디버그용 프레임 카운터
+  private frameCount = 0
 
   constructor() {
     this.maxBufferSize = GAIT_ANALYSIS_CONFIG.maxFrameBufferSize
+  }
+
+  /**
+   * 사용자 키를 설정합니다 (보폭 변환에 사용).
+   */
+  setUserHeight(heightCm: number): void {
+    if (heightCm > 0) {
+      this.userHeightCm = heightCm
+    }
   }
 
   /**
@@ -122,14 +181,28 @@ export class GaitAnalyzer {
    */
   reset(): void {
     this.frameBuffer = []
+    this.allFrameData = []
     this.leftAnkleYHistory = []
     this.rightAnkleYHistory = []
+    this.leftAnkleYTimestamps = []
+    this.rightAnkleYTimestamps = []
+    this.leftKneeAngleHistory = []
+    this.rightKneeAngleHistory = []
+    this.kneeAngleTimestamps = []
+    this.lastKneePeakTime = { left: 0, right: 0 }
     this.lastHeelStrike = { left: 0, right: 0 }
     this.lastToeOff = { left: 0, right: 0 }
     this.leftStrides = []
     this.rightStrides = []
     this.gaitCycles = []
-    this.groundLevel = { left: 1, right: 1 }
+    this.groundLevel = { left: 0, right: 0 }
+    this.groundLevelInitialized = false
+    this.pixelToMeterScale = 1
+    this.legLengthSamples = []
+    this.isSideView = false
+    this.viewDirection = 'front'
+    this.shoulderSpreadSamples = []
+    this.frameCount = 0
     this.currentPhaseState = {
       leftLeg: 'stance',
       rightLeg: 'stance',
@@ -145,6 +218,8 @@ export class GaitAnalyzer {
    * 프레임을 처리하고 분석 결과를 반환합니다.
    */
   processFrame(landmarks: Landmark[], timestamp: number): GaitFrame {
+    this.frameCount++
+
     // 키포인트 추출 (MediaPipe 인덱스 사용)
     const leftHip = landmarks[GAIT_LANDMARKS.LEFT_HIP]
     const rightHip = landmarks[GAIT_LANDMARKS.RIGHT_HIP]
@@ -169,29 +244,59 @@ export class GaitAnalyzer {
       rightHip
     )
 
-    // 발 위치 (heel과 ankle 중 더 낮은 것 사용)
+    // 발 위치 (heel과 ankle 중 더 낮은 것 사용 - Y가 클수록 화면 아래)
     const leftFootY = Math.max(leftAnkle.y, leftHeel?.y ?? leftAnkle.y)
     const rightFootY = Math.max(rightAnkle.y, rightHeel?.y ?? rightAnkle.y)
 
     // 발목 Y 위치 히스토리 업데이트
     this.leftAnkleYHistory.push(leftFootY)
     this.rightAnkleYHistory.push(rightFootY)
+    this.leftAnkleYTimestamps.push(timestamp)
+    this.rightAnkleYTimestamps.push(timestamp)
 
-    // 히스토리 크기 제한
-    const historyLimit = 30
+    // 무릎 각도 히스토리 업데이트
+    this.leftKneeAngleHistory.push(leftKneeAngle)
+    this.rightKneeAngleHistory.push(rightKneeAngle)
+    this.kneeAngleTimestamps.push(timestamp)
+
+    // 히스토리 크기 제한 (peak detection에 충분한 윈도우 확보)
+    const historyLimit = 90
     if (this.leftAnkleYHistory.length > historyLimit) {
       this.leftAnkleYHistory.shift()
+      this.leftAnkleYTimestamps.shift()
     }
     if (this.rightAnkleYHistory.length > historyLimit) {
       this.rightAnkleYHistory.shift()
+      this.rightAnkleYTimestamps.shift()
+    }
+    if (this.leftKneeAngleHistory.length > historyLimit) {
+      this.leftKneeAngleHistory.shift()
+      this.rightKneeAngleHistory.shift()
+      this.kneeAngleTimestamps.shift()
     }
 
-    // 지면 레벨 업데이트 (최저점)
-    this.groundLevel.left = Math.max(this.groundLevel.left, leftFootY)
-    this.groundLevel.right = Math.max(this.groundLevel.right, rightFootY)
+    // 지면 레벨 업데이트 (가장 낮은 발 위치 = 가장 높은 Y값)
+    if (!this.groundLevelInitialized) {
+      this.groundLevel.left = leftFootY
+      this.groundLevel.right = rightFootY
+      this.groundLevelInitialized = true
+    } else {
+      const alpha = 0.05
+      this.groundLevel.left = Math.max(this.groundLevel.left, leftFootY * alpha + this.groundLevel.left * (1 - alpha))
+      this.groundLevel.right = Math.max(this.groundLevel.right, rightFootY * alpha + this.groundLevel.right * (1 - alpha))
+    }
 
-    // 보행 단계 감지
-    this.detectGaitPhase(leftAnkle, rightAnkle, leftHeel, rightHeel, timestamp)
+    // pixel→meter 스케일 업데이트 (다리 길이 기반)
+    this.updatePixelToMeterScale(leftHip, leftAnkle, rightHip, rightAnkle)
+
+    // 측면 촬영 감지
+    this.detectSideView(leftShoulder, rightShoulder, leftHip, rightHip)
+
+    // 보행 단계 감지 (무릎 각도 primary + 발목 Y secondary)
+    this.detectGaitPhase(
+      leftAnkle, rightAnkle, leftHeel, rightHeel,
+      timestamp, leftKneeAngle, rightKneeAngle
+    )
 
     // 측정값 계산
     const measurements = this.calculateMeasurements(landmarks, timestamp)
@@ -217,7 +322,68 @@ export class GaitAnalyzer {
       this.frameBuffer.shift()
     }
 
+    // 차트용 전체 데이터 축적
+    this.allFrameData.push({
+      timestamp,
+      leftKneeAngle,
+      rightKneeAngle,
+      leftHipAngle,
+      rightHipAngle,
+      leftAnkleY: leftFootY,
+      rightAnkleY: rightFootY,
+    })
+
+    // [DEBUG] 매 30프레임마다 상태 출력
+    if (this.frameCount % 30 === 0) {
+      const lAYH = this.leftAnkleYHistory
+      const ankleYRange = lAYH.length > 1 ? Math.max(...lAYH) - Math.min(...lAYH) : 0
+      const lKAH = this.leftKneeAngleHistory
+      const kneeRange = lKAH.length > 1 ? Math.max(...lKAH) - Math.min(...lKAH) : 0
+      const hipAnkleDist = (calculateDistance(leftHip, leftAnkle) + calculateDistance(rightHip, rightAnkle)) / 2
+      console.log(`[GaitDebug] frame=${this.frameCount}`, {
+        ankleY: { L: leftFootY.toFixed(4), R: rightFootY.toFixed(4) },
+        ankleYRange: ankleYRange.toFixed(4),
+        kneeAngle: { L: leftKneeAngle.toFixed(1), R: rightKneeAngle.toFixed(1) },
+        kneeAngleRange: kneeRange.toFixed(1),
+        scale: this.pixelToMeterScale.toFixed(3),
+        hipAnkleDist: hipAnkleDist.toFixed(4),
+        isSideView: this.isSideView,
+        viewDir: this.viewDirection,
+        strides: this.currentPhaseState.cycleCount,
+        cycles: this.gaitCycles.length,
+        phase: `L:${this.currentPhaseState.leftLeg} R:${this.currentPhaseState.rightLeg}`,
+        leftStrides: this.leftStrides.length,
+        rightStrides: this.rightStrides.length,
+      })
+    }
+
     return frame
+  }
+
+  /**
+   * 정규화 좌표에서 실제 미터로 변환하는 스케일을 업데이트합니다.
+   */
+  private updatePixelToMeterScale(
+    leftHip: Landmark,
+    leftAnkle: Landmark,
+    rightHip: Landmark,
+    rightAnkle: Landmark
+  ): void {
+    const leftLegLen = calculateDistance(leftHip, leftAnkle)
+    const rightLegLen = calculateDistance(rightHip, rightAnkle)
+    const avgLegLen = (leftLegLen + rightLegLen) / 2
+
+    if (avgLegLen > 0.01) {
+      this.legLengthSamples.push(avgLegLen)
+      if (this.legLengthSamples.length > 30) {
+        this.legLengthSamples.shift()
+      }
+
+      // 실제 다리 길이 (키의 약 47%)
+      const realLegLengthM = (this.userHeightCm * 0.47) / 100
+      const avgNormalizedLeg = this.legLengthSamples.reduce((a, b) => a + b, 0) / this.legLengthSamples.length
+      this.pixelToMeterScale = realLegLengthM / avgNormalizedLeg
+    }
   }
 
   /**
@@ -229,7 +395,6 @@ export class GaitAnalyzer {
     ankle: Landmark
   ): number {
     const angle = calculateAngle(hip, knee, ankle)
-    // 완전 펴진 상태가 180도이므로, 굴곡 각도 = 180 - 각도
     return 180 - angle
   }
 
@@ -242,7 +407,6 @@ export class GaitAnalyzer {
     knee: Landmark
   ): number {
     const angle = calculateAngle(shoulder, hip, knee)
-    // 직립 상태가 약 180도이므로
     return Math.abs(180 - angle)
   }
 
@@ -255,91 +419,357 @@ export class GaitAnalyzer {
     leftHip: Landmark,
     rightHip: Landmark
   ): number {
-    // 어깨 중점
     const shoulderMid = {
       x: (leftShoulder.x + rightShoulder.x) / 2,
       y: (leftShoulder.y + rightShoulder.y) / 2,
     }
-
-    // 엉덩이 중점
     const hipMid = {
       x: (leftHip.x + rightHip.x) / 2,
       y: (leftHip.y + rightHip.y) / 2,
     }
-
-    // 수직선과의 각도 (양수: 앞으로 기울임, 음수: 뒤로 기울임)
     return calculateAngleFromVertical(hipMid, shoulderMid)
   }
 
   /**
+   * 측면 촬영 여부를 감지합니다.
+   */
+  private detectSideView(
+    leftShoulder: Landmark,
+    rightShoulder: Landmark,
+    leftHip: Landmark,
+    rightHip: Landmark
+  ): void {
+    const shoulderSpread = Math.abs(leftShoulder.x - rightShoulder.x)
+    const hipSpread = Math.abs(leftHip.x - rightHip.x)
+    const avgSpread = (shoulderSpread + hipSpread) / 2
+
+    this.shoulderSpreadSamples.push(avgSpread)
+    if (this.shoulderSpreadSamples.length > 30) {
+      this.shoulderSpreadSamples.shift()
+    }
+
+    const avgSample = this.shoulderSpreadSamples.reduce((a, b) => a + b, 0) / this.shoulderSpreadSamples.length
+
+    // 어깨/엉덩이 X좌표 차이가 작으면 측면 촬영 (겹쳐 보임)
+    this.isSideView = avgSample < 0.08
+
+    if (this.isSideView) {
+      // 방향 감지: 어깨 중점 기준으로 왼쪽/오른쪽 판단
+      const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2
+      if (leftShoulder.x < rightShoulder.x) {
+        // 왼쪽 어깨가 더 왼쪽에 → 사람이 오른쪽을 향함
+        this.viewDirection = shoulderMidX < 0.5 ? 'right' : 'left'
+      } else {
+        this.viewDirection = shoulderMidX < 0.5 ? 'left' : 'right'
+      }
+    } else {
+      this.viewDirection = 'front'
+    }
+  }
+
+  /**
+   * smoothed 신호에서 local maximum을 감지합니다.
+   * halfWindow 프레임 전의 값이 양쪽 이웃보다 큰지 확인합니다.
+   */
+  private detectSignalPeak(
+    smoothed: number[],
+    timestamps: number[],
+    halfWindow: number,
+    minRange: number,
+    peakThresholdRatio: number
+  ): { index: number; timestamp: number; value: number } | null {
+    if (smoothed.length < halfWindow * 2 + 1) return null
+
+    const checkIdx = smoothed.length - 1 - halfWindow
+    if (checkIdx < halfWindow) return null
+
+    const val = smoothed[checkIdx]
+
+    // local maximum 확인
+    let isPeak = true
+    for (let i = 1; i <= halfWindow; i++) {
+      if (smoothed[checkIdx - i] >= val || smoothed[checkIdx + i] >= val) {
+        isPeak = false
+        break
+      }
+    }
+    if (!isPeak) return null
+
+    // 동적 임계값: 최근 데이터의 범위 확인
+    const windowSize = Math.min(60, smoothed.length)
+    const recent = smoothed.slice(-windowSize)
+    const minVal = Math.min(...recent)
+    const maxVal = Math.max(...recent)
+    const range = maxVal - minVal
+
+    if (range < minRange) return null
+
+    // peak가 범위의 상위 부분에 있어야 함
+    if (val < minVal + range * peakThresholdRatio) return null
+
+    return { index: checkIdx, timestamp: timestamps[checkIdx], value: val }
+  }
+
+  /**
+   * smoothed 신호에서 local minimum을 감지합니다.
+   */
+  private detectSignalValley(
+    smoothed: number[],
+    timestamps: number[],
+    halfWindow: number,
+    minRange: number,
+    valleyThresholdRatio: number
+  ): { index: number; timestamp: number; value: number } | null {
+    if (smoothed.length < halfWindow * 2 + 1) return null
+
+    const checkIdx = smoothed.length - 1 - halfWindow
+    if (checkIdx < halfWindow) return null
+
+    const val = smoothed[checkIdx]
+
+    // local minimum 확인
+    let isValley = true
+    for (let i = 1; i <= halfWindow; i++) {
+      if (smoothed[checkIdx - i] <= val || smoothed[checkIdx + i] <= val) {
+        isValley = false
+        break
+      }
+    }
+    if (!isValley) return null
+
+    const windowSize = Math.min(60, smoothed.length)
+    const recent = smoothed.slice(-windowSize)
+    const minVal = Math.min(...recent)
+    const maxVal = Math.max(...recent)
+    const range = maxVal - minVal
+
+    if (range < minRange) return null
+
+    // valley가 범위의 하위 부분에 있어야 함
+    if (val > minVal + range * valleyThresholdRatio) return null
+
+    return { index: checkIdx, timestamp: timestamps[checkIdx], value: val }
+  }
+
+  /**
    * 보행 단계를 감지합니다.
+   * Primary: 무릎 각도 peak (대진폭, 더 robust)
+   * Secondary: 발목 Y peak (fallback)
    */
   private detectGaitPhase(
     leftAnkle: Landmark,
     rightAnkle: Landmark,
-    leftHeel: Landmark | undefined,
-    rightHeel: Landmark | undefined,
-    timestamp: number
+    _leftHeel: Landmark | undefined,
+    _rightHeel: Landmark | undefined,
+    timestamp: number,
+    leftKneeAngle: number,
+    rightKneeAngle: number
   ): void {
-    const threshold = GAIT_ANALYSIS_CONFIG.heelStrikeThreshold
+    const minPeakInterval = 333 // 최소 peak 간격 (ms) - 빠른 걸음 0.33초
 
-    // 발목 Y 속도 계산 (위로 이동: 음수, 아래로 이동: 양수)
-    const leftVelocity = this.calculateVelocity(this.leftAnkleYHistory)
-    const rightVelocity = this.calculateVelocity(this.rightAnkleYHistory)
+    // === Primary: 무릎 각도 peak detection ===
+    // 무릎 굴곡 최대값 = mid-swing (발이 뒤에서 앞으로 이동 중 무릎 최대 굽힘)
+    const smoothedLeftKnee = smoothSignal(this.leftKneeAngleHistory, 5)
+    const smoothedRightKnee = smoothSignal(this.rightKneeAngleHistory, 5)
 
-    // 발 높이 (지면에서의 거리) - heel 또는 ankle 사용
-    const leftFootY = leftHeel ? Math.max(leftAnkle.y, leftHeel.y) : leftAnkle.y
-    const rightFootY = rightHeel ? Math.max(rightAnkle.y, rightHeel.y) : rightAnkle.y
-    const leftHeight = this.groundLevel.left - leftFootY
-    const rightHeight = this.groundLevel.right - rightFootY
+    // halfWindow=6, minRange=15° (걷기 시 최소 15° 이상 무릎 각도 변화), threshold=0.3 (상위 70%)
+    const leftKneePeak = this.detectSignalPeak(
+      smoothedLeftKnee, this.kneeAngleTimestamps, 6, 15, 0.3
+    )
+    const rightKneePeak = this.detectSignalPeak(
+      smoothedRightKnee, this.kneeAngleTimestamps, 6, 15, 0.3
+    )
 
-    // 왼발 단계 감지
-    const prevLeftLeg = this.currentPhaseState.leftLeg
-    if (prevLeftLeg === 'swing' && leftVelocity > threshold && leftHeight < 0.02) {
-      // Heel Strike 감지
-      this.currentPhaseState.leftLeg = 'stance'
-      this.currentPhaseState.leftPhase = 'initial_contact'
+    let kneeDetectionUsed = false
 
-      // 보행 주기 계산
-      if (this.lastHeelStrike.left > 0) {
-        const cycle = timestamp - this.lastHeelStrike.left
-        this.gaitCycles.push(cycle)
+    // 왼쪽 무릎 peak → 왼발 swing 중 최대 굴곡 → 곧 heel strike
+    if (leftKneePeak) {
+      const elapsed = leftKneePeak.timestamp - this.lastKneePeakTime.left
+      if (elapsed > minPeakInterval || this.lastKneePeakTime.left === 0) {
+        console.log(`[GaitDebug] LEFT knee peak detected`, {
+          time: leftKneePeak.timestamp.toFixed(0),
+          angle: leftKneePeak.value.toFixed(1),
+          elapsed: elapsed.toFixed(0),
+          ankleXsep: Math.abs(leftAnkle.x - rightAnkle.x).toFixed(4),
+        })
+        kneeDetectionUsed = true
+
+        // 보행 주기: 같은 발의 연속 peak 간 시간
+        if (this.lastKneePeakTime.left > 0) {
+          const cycle = leftKneePeak.timestamp - this.lastKneePeakTime.left
+          if (cycle > 400 && cycle < 3000) {
+            this.gaitCycles.push(cycle)
+          }
+        }
+        this.lastKneePeakTime.left = leftKneePeak.timestamp
+
+        // 보폭: 이 시점에서 양 발목 X 좌표 차이
+        const stridePx = Math.abs(leftAnkle.x - rightAnkle.x)
+        if (stridePx > 0.005) {
+          this.leftStrides.push(stridePx)
+        }
+
+        // 보행 상태 전환
+        this.currentPhaseState.leftLeg = 'stance'
+        this.currentPhaseState.leftPhase = 'initial_contact'
+        this.lastHeelStrike.left = leftKneePeak.timestamp
+        this.currentPhaseState.lastHeelStrike.left = leftKneePeak.timestamp
+        this.currentPhaseState.cycleCount++
       }
-      this.lastHeelStrike.left = timestamp
-      this.currentPhaseState.lastHeelStrike.left = timestamp
-      this.currentPhaseState.cycleCount++
-    } else if (prevLeftLeg === 'stance' && leftVelocity < -threshold) {
-      // Toe Off 감지
-      this.currentPhaseState.leftLeg = 'swing'
-      this.currentPhaseState.leftPhase = 'pre_swing'
-      this.lastToeOff.left = timestamp
-      this.currentPhaseState.lastToeOff.left = timestamp
-
-      // 보폭 계산 (toe off 시점의 발목 간 거리)
-      const stride = Math.abs(leftAnkle.x - rightAnkle.x)
-      this.leftStrides.push(stride)
     }
 
-    // 오른발 단계 감지
-    const prevRightLeg = this.currentPhaseState.rightLeg
-    if (prevRightLeg === 'swing' && rightVelocity > threshold && rightHeight < 0.02) {
-      this.currentPhaseState.rightLeg = 'stance'
-      this.currentPhaseState.rightPhase = 'initial_contact'
+    // 오른쪽 무릎 peak
+    if (rightKneePeak) {
+      const elapsed = rightKneePeak.timestamp - this.lastKneePeakTime.right
+      if (elapsed > minPeakInterval || this.lastKneePeakTime.right === 0) {
+        console.log(`[GaitDebug] RIGHT knee peak detected`, {
+          time: rightKneePeak.timestamp.toFixed(0),
+          angle: rightKneePeak.value.toFixed(1),
+          elapsed: elapsed.toFixed(0),
+          ankleXsep: Math.abs(leftAnkle.x - rightAnkle.x).toFixed(4),
+        })
+        kneeDetectionUsed = true
 
-      if (this.lastHeelStrike.right > 0) {
-        const cycle = timestamp - this.lastHeelStrike.right
-        this.gaitCycles.push(cycle)
+        if (this.lastKneePeakTime.right > 0) {
+          const cycle = rightKneePeak.timestamp - this.lastKneePeakTime.right
+          if (cycle > 400 && cycle < 3000) {
+            this.gaitCycles.push(cycle)
+          }
+        }
+        this.lastKneePeakTime.right = rightKneePeak.timestamp
+
+        const stridePx = Math.abs(rightAnkle.x - leftAnkle.x)
+        if (stridePx > 0.005) {
+          this.rightStrides.push(stridePx)
+        }
+
+        this.currentPhaseState.rightLeg = 'stance'
+        this.currentPhaseState.rightPhase = 'initial_contact'
+        this.lastHeelStrike.right = rightKneePeak.timestamp
+        this.currentPhaseState.lastHeelStrike.right = rightKneePeak.timestamp
       }
-      this.lastHeelStrike.right = timestamp
-      this.currentPhaseState.lastHeelStrike.right = timestamp
-    } else if (prevRightLeg === 'stance' && rightVelocity < -threshold) {
-      this.currentPhaseState.rightLeg = 'swing'
-      this.currentPhaseState.rightPhase = 'pre_swing'
-      this.lastToeOff.right = timestamp
-      this.currentPhaseState.lastToeOff.right = timestamp
+    }
 
-      const stride = Math.abs(rightAnkle.x - leftAnkle.x)
-      this.rightStrides.push(stride)
+    // === 무릎 각도 valley → 무릎 최대 신전 = mid-stance → swing 전환 ===
+    const leftKneeValley = this.detectSignalValley(
+      smoothedLeftKnee, this.kneeAngleTimestamps, 6, 15, 0.4
+    )
+    if (leftKneeValley && this.currentPhaseState.leftLeg === 'stance') {
+      const elapsed = leftKneeValley.timestamp - this.lastToeOff.left
+      if (elapsed > 200 || this.lastToeOff.left === 0) {
+        this.currentPhaseState.leftLeg = 'swing'
+        this.currentPhaseState.leftPhase = 'pre_swing'
+        this.lastToeOff.left = leftKneeValley.timestamp
+        this.currentPhaseState.lastToeOff.left = leftKneeValley.timestamp
+      }
+    }
+
+    const rightKneeValley = this.detectSignalValley(
+      smoothedRightKnee, this.kneeAngleTimestamps, 6, 15, 0.4
+    )
+    if (rightKneeValley && this.currentPhaseState.rightLeg === 'stance') {
+      const elapsed = rightKneeValley.timestamp - this.lastToeOff.right
+      if (elapsed > 200 || this.lastToeOff.right === 0) {
+        this.currentPhaseState.rightLeg = 'swing'
+        this.currentPhaseState.rightPhase = 'pre_swing'
+        this.lastToeOff.right = rightKneeValley.timestamp
+        this.currentPhaseState.lastToeOff.right = rightKneeValley.timestamp
+      }
+    }
+
+    // === Secondary/Fallback: 발목 Y 기반 감지 ===
+    // 무릎 각도로 감지 안 될 때 (60프레임 이상 경과, 아직 cycle 없음)
+    if (!kneeDetectionUsed && this.frameCount > 60 && this.gaitCycles.length === 0) {
+      const smoothedLeftAnkleY = smoothSignal(this.leftAnkleYHistory, 5)
+      const smoothedRightAnkleY = smoothSignal(this.rightAnkleYHistory, 5)
+
+      // 발목 Y local maxima = heel strike (Y 클수록 아래 = 지면)
+      // halfWindow=5, minRange=0.002 (매우 작은 변화도 감지), threshold=0.5
+      const leftAnklePeak = this.detectSignalPeak(
+        smoothedLeftAnkleY, this.leftAnkleYTimestamps, 5, 0.002, 0.5
+      )
+      if (leftAnklePeak) {
+        const elapsed = leftAnklePeak.timestamp - this.lastHeelStrike.left
+        if (elapsed > minPeakInterval || this.lastHeelStrike.left === 0) {
+          console.log(`[GaitDebug] LEFT ankle Y peak (fallback)`, {
+            time: leftAnklePeak.timestamp.toFixed(0),
+            value: leftAnklePeak.value.toFixed(4),
+          })
+
+          if (this.lastHeelStrike.left > 0) {
+            const cycle = leftAnklePeak.timestamp - this.lastHeelStrike.left
+            if (cycle > 400 && cycle < 3000) {
+              this.gaitCycles.push(cycle)
+            }
+          }
+          this.lastHeelStrike.left = leftAnklePeak.timestamp
+          this.currentPhaseState.lastHeelStrike.left = leftAnklePeak.timestamp
+          this.currentPhaseState.leftLeg = 'stance'
+          this.currentPhaseState.leftPhase = 'initial_contact'
+          this.currentPhaseState.cycleCount++
+
+          const stridePx = Math.abs(leftAnkle.x - rightAnkle.x)
+          if (stridePx > 0.005) {
+            this.leftStrides.push(stridePx)
+          }
+        }
+      }
+
+      const rightAnklePeak = this.detectSignalPeak(
+        smoothedRightAnkleY, this.rightAnkleYTimestamps, 5, 0.002, 0.5
+      )
+      if (rightAnklePeak) {
+        const elapsed = rightAnklePeak.timestamp - this.lastHeelStrike.right
+        if (elapsed > minPeakInterval || this.lastHeelStrike.right === 0) {
+          console.log(`[GaitDebug] RIGHT ankle Y peak (fallback)`, {
+            time: rightAnklePeak.timestamp.toFixed(0),
+            value: rightAnklePeak.value.toFixed(4),
+          })
+
+          if (this.lastHeelStrike.right > 0) {
+            const cycle = rightAnklePeak.timestamp - this.lastHeelStrike.right
+            if (cycle > 400 && cycle < 3000) {
+              this.gaitCycles.push(cycle)
+            }
+          }
+          this.lastHeelStrike.right = rightAnklePeak.timestamp
+          this.currentPhaseState.lastHeelStrike.right = rightAnklePeak.timestamp
+          this.currentPhaseState.rightLeg = 'stance'
+          this.currentPhaseState.rightPhase = 'initial_contact'
+
+          const stridePx = Math.abs(rightAnkle.x - leftAnkle.x)
+          if (stridePx > 0.005) {
+            this.rightStrides.push(stridePx)
+          }
+        }
+      }
+
+      // 발목 Y local minima = toe off (Y 작을수록 위)
+      const leftAnkleValley = this.detectSignalValley(
+        smoothedLeftAnkleY, this.leftAnkleYTimestamps, 5, 0.002, 0.5
+      )
+      if (leftAnkleValley && this.currentPhaseState.leftLeg === 'stance') {
+        const elapsed = leftAnkleValley.timestamp - this.lastToeOff.left
+        if (elapsed > 200 || this.lastToeOff.left === 0) {
+          this.currentPhaseState.leftLeg = 'swing'
+          this.currentPhaseState.leftPhase = 'pre_swing'
+          this.lastToeOff.left = leftAnkleValley.timestamp
+          this.currentPhaseState.lastToeOff.left = leftAnkleValley.timestamp
+        }
+      }
+
+      const rightAnkleValley = this.detectSignalValley(
+        smoothedRightAnkleY, this.rightAnkleYTimestamps, 5, 0.002, 0.5
+      )
+      if (rightAnkleValley && this.currentPhaseState.rightLeg === 'stance') {
+        const elapsed = rightAnkleValley.timestamp - this.lastToeOff.right
+        if (elapsed > 200 || this.lastToeOff.right === 0) {
+          this.currentPhaseState.rightLeg = 'swing'
+          this.currentPhaseState.rightPhase = 'pre_swing'
+          this.lastToeOff.right = rightAnkleValley.timestamp
+          this.currentPhaseState.lastToeOff.right = rightAnkleValley.timestamp
+        }
+      }
     }
 
     // 세부 단계 업데이트
@@ -379,7 +809,7 @@ export class GaitAnalyzer {
       }
     }
 
-    // 오른발 세부 단계 (동일한 로직)
+    // 오른발 세부 단계
     if (this.currentPhaseState.rightLeg === 'stance') {
       const elapsed = timestamp - this.currentPhaseState.lastHeelStrike.right
       const stancePercent = elapsed / (this.getAverageGaitCycle() * 0.6)
@@ -410,37 +840,20 @@ export class GaitAnalyzer {
   }
 
   /**
-   * Y 위치 변화 속도를 계산합니다.
-   */
-  private calculateVelocity(history: number[]): number {
-    if (history.length < 2) return 0
-
-    const recent = history.slice(-5)
-    if (recent.length < 2) return 0
-
-    // 이동 평균 차이
-    const older = recent.slice(0, Math.floor(recent.length / 2))
-    const newer = recent.slice(Math.floor(recent.length / 2))
-
-    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length
-    const newerAvg = newer.reduce((a, b) => a + b, 0) / newer.length
-
-    return newerAvg - olderAvg
-  }
-
-  /**
    * 측정값을 계산합니다.
    */
   private calculateMeasurements(
     landmarks: Landmark[],
-    timestamp: number
+    _timestamp: number
   ): Partial<GaitMeasurements> {
     const windowSize = GAIT_ANALYSIS_CONFIG.smoothingWindowSize
 
-    // 보폭 (정규화된 좌표이므로 화면 비율 기준)
+    // 보폭 (정규화 좌표 → 실제 미터 변환)
     const avgLeftStride = movingAverage(this.leftStrides, windowSize)
     const avgRightStride = movingAverage(this.rightStrides, windowSize)
-    const avgStride = (avgLeftStride + avgRightStride) / 2
+    const avgStrideNorm = (avgLeftStride + avgRightStride) / 2
+    // step length (양 발목 간 거리) → stride length ≈ 2 * step length
+    const avgStrideMeters = avgStrideNorm * this.pixelToMeterScale * 2
 
     // 보행 주기
     const avgCycle = movingAverage(this.gaitCycles, windowSize)
@@ -449,8 +862,8 @@ export class GaitAnalyzer {
     const symmetry =
       avgRightStride > 0 ? avgLeftStride / avgRightStride : 1
 
-    // 보행 속도 (프레임 간 이동 거리 기반 추정)
-    const speed = avgCycle > 0 ? avgStride / (avgCycle / 1000) : 0
+    // 보행 속도 (m/s) = 보폭(m) / 보행주기(s)
+    const speed = avgCycle > 0 ? avgStrideMeters / (avgCycle / 1000) : 0
 
     // 최근 프레임에서 각도 추출
     const recentFrames = this.frameBuffer.slice(-windowSize)
@@ -475,7 +888,7 @@ export class GaitAnalyzer {
       windowSize
     )
 
-    // 발 들어올림 높이 (유각기 중 최대 높이)
+    // 발 들어올림 높이 (정규화 좌표 → cm 변환)
     const leftSwingFrames = recentFrames.filter(
       (f) => f.phase.leftLeg === 'swing'
     )
@@ -495,12 +908,10 @@ export class GaitAnalyzer {
           )
         : 0
     const avgClearance = (maxLeftClearance + maxRightClearance) / 2
+    const clearanceCm = avgClearance * this.pixelToMeterScale * 100
 
     return {
-      strideLength: this.createMeasurementValue(
-        avgStride * 100, // 정규화된 값을 스케일링 (근사치)
-        'strideLength'
-      ),
+      strideLength: this.createMeasurementValue(avgStrideMeters, 'strideLength'),
       gaitSpeed: this.createMeasurementValue(speed, 'gaitSpeed'),
       gaitCycle: this.createMeasurementValue(avgCycle, 'gaitCycle'),
       leftRightSymmetry: this.createMeasurementValue(symmetry, 'leftRightSymmetry'),
@@ -509,10 +920,7 @@ export class GaitAnalyzer {
       hipFlexionLeft: this.createMeasurementValue(avgLeftHip, 'hipFlexionLeft'),
       hipFlexionRight: this.createMeasurementValue(avgRightHip, 'hipFlexionRight'),
       trunkInclination: this.createMeasurementValue(avgTrunk, 'trunkInclination'),
-      footClearance: this.createMeasurementValue(
-        avgClearance * 100, // 스케일링
-        'footClearance'
-      ),
+      footClearance: this.createMeasurementValue(clearanceCm, 'footClearance'),
     }
   }
 
@@ -576,15 +984,52 @@ export class GaitAnalyzer {
       return null
     }
 
-    // 전체 측정값 반환 (Partial이지만 대부분 채워져 있음)
     return lastFrame.measurements as GaitMeasurements
+  }
+
+  /**
+   * allFrameData를 최대 maxPoints 개로 다운샘플링하여 차트 데이터를 생성합니다.
+   */
+  private buildChartData(maxPoints: number = 500): GaitChartData {
+    const data = this.allFrameData
+    if (data.length === 0) {
+      return {
+        timestamps: [],
+        leftKneeAngles: [],
+        rightKneeAngles: [],
+        leftHipAngles: [],
+        rightHipAngles: [],
+        leftAnkleHeights: [],
+        rightAnkleHeights: [],
+      }
+    }
+
+    let sampled = data
+    if (data.length > maxPoints) {
+      sampled = []
+      const step = data.length / maxPoints
+      for (let i = 0; i < maxPoints; i++) {
+        sampled.push(data[Math.floor(i * step)])
+      }
+    }
+
+    const startTime = sampled[0].timestamp
+    return {
+      timestamps: sampled.map((d) => Math.round(d.timestamp - startTime)),
+      leftKneeAngles: sampled.map((d) => Math.round(d.leftKneeAngle)),
+      rightKneeAngles: sampled.map((d) => Math.round(d.rightKneeAngle)),
+      leftHipAngles: sampled.map((d) => Math.round(d.leftHipAngle)),
+      rightHipAngles: sampled.map((d) => Math.round(d.rightHipAngle)),
+      leftAnkleHeights: sampled.map((d) => Math.round((1 - d.leftAnkleY) * 100)),
+      rightAnkleHeights: sampled.map((d) => Math.round((1 - d.rightAnkleY) * 100)),
+    }
   }
 
   /**
    * 전체 분석 결과를 생성합니다.
    */
   generateAnalysisResult(): GaitAnalysisResult | null {
-    if (this.frameBuffer.length < 30) {
+    if (this.frameBuffer.length < 10) {
       return null
     }
 
@@ -638,6 +1083,25 @@ export class GaitAnalyzer {
     ).length
     const totalPhaseFrames = stanceFrames + swingFrames
 
+    // [DEBUG] 최종 결과 요약
+    console.log(`[GaitDebug] === FINAL RESULT ===`, {
+      duration: duration.toFixed(1),
+      totalStrides: this.currentPhaseState.cycleCount,
+      gaitCycles: this.gaitCycles.length,
+      leftStrides: this.leftStrides.length,
+      rightStrides: this.rightStrides.length,
+      avgLeftStride: this.leftStrides.length > 0
+        ? (this.leftStrides.reduce((a, b) => a + b, 0) / this.leftStrides.length).toFixed(4)
+        : 'none',
+      avgRightStride: this.rightStrides.length > 0
+        ? (this.rightStrides.reduce((a, b) => a + b, 0) / this.rightStrides.length).toFixed(4)
+        : 'none',
+      pixelToMeterScale: this.pixelToMeterScale.toFixed(3),
+      isSideView: this.isSideView,
+      viewDirection: this.viewDirection,
+      overallScore,
+    })
+
     return {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -656,6 +1120,8 @@ export class GaitAnalyzer {
       anomalies,
       overallScore,
       recommendations,
+      chartData: this.buildChartData(),
+      isSideView: this.isSideView,
     }
   }
 
@@ -665,8 +1131,8 @@ export class GaitAnalyzer {
   private detectAnomalies(measurements: GaitMeasurements): GaitAnomaly[] {
     const anomalies: GaitAnomaly[] = []
 
-    // 좌우 비대칭
-    if (measurements.leftRightSymmetry?.status === 'danger') {
+    // 좌우 비대칭 (측면 촬영 시 제외)
+    if (!this.isSideView && measurements.leftRightSymmetry?.status === 'danger') {
       const isLeftLonger = measurements.leftRightSymmetry.value > 1
       anomalies.push({
         type: 'asymmetry',
@@ -726,7 +1192,6 @@ export class GaitAnalyzer {
     let totalScore = 0
     let totalWeight = 0
 
-    // 보폭
     if (measurements.strideLength) {
       const score = calculateMeasurementScore(
         measurements.strideLength.value,
@@ -737,7 +1202,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.strideLength
     }
 
-    // 보행 속도
     if (measurements.gaitSpeed) {
       const score = calculateMeasurementScore(
         measurements.gaitSpeed.value,
@@ -748,7 +1212,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.gaitSpeed
     }
 
-    // 좌우 대칭성
     if (measurements.leftRightSymmetry) {
       const score = calculateMeasurementScore(
         measurements.leftRightSymmetry.value,
@@ -759,7 +1222,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.leftRightSymmetry
     }
 
-    // 무릎 굴곡 (평균)
     if (measurements.kneeFlexionLeft && measurements.kneeFlexionRight) {
       const avgKnee =
         (measurements.kneeFlexionLeft.value + measurements.kneeFlexionRight.value) / 2
@@ -772,7 +1234,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.kneeFlexion
     }
 
-    // 엉덩이 굴곡 (평균)
     if (measurements.hipFlexionLeft && measurements.hipFlexionRight) {
       const avgHip =
         (measurements.hipFlexionLeft.value + measurements.hipFlexionRight.value) / 2
@@ -785,7 +1246,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.hipFlexion
     }
 
-    // 몸통 기울기
     if (measurements.trunkInclination) {
       const score = calculateMeasurementScore(
         measurements.trunkInclination.value,
@@ -796,7 +1256,6 @@ export class GaitAnalyzer {
       totalWeight += GAIT_SCORE_WEIGHTS.trunkInclination
     }
 
-    // 발 들어올림
     if (measurements.footClearance) {
       const score = calculateMeasurementScore(
         measurements.footClearance.value,
@@ -884,7 +1343,6 @@ export class GaitAnalyzer {
       }
     }
 
-    // 일반 권장사항
     if (anomalies.some((a) => a.severity === 'severe')) {
       recommendations.push({
         type: 'medical',

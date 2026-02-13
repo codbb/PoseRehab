@@ -38,6 +38,7 @@ const POSTURE_ANGLE_IMPACT: Record<PostureType, Partial<PostureAngles>> = {
   normal: {},
   forward_head: { headForward: 5 },
   rounded_shoulders: { shoulderRound: 8 },
+  round_shoulder: { shoulderRound: 6, headForward: 2 },
   kyphosis: { spinalCurve: 10, shoulderRound: 5 },
   lordosis: { spinalCurve: 8, pelvicTilt: 6 },
   scoliosis: { spinalCurve: 12 },

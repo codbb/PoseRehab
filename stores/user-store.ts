@@ -73,12 +73,16 @@ export const useUserStore = create<UserState>()(
       setPostureScore: (score) => set({ postureScore: score }),
       addExperience: (exp) =>
         set((state) => {
+          if (!Number.isFinite(exp) || exp < 0) return state
+          const MAX_LEVEL = 100
+          if (state.level >= MAX_LEVEL) return { experience: state.experience }
           const newExp = state.experience + exp
           const expForNextLevel = state.level * 100
           if (newExp >= expForNextLevel) {
+            const nextLevel = Math.min(state.level + 1, MAX_LEVEL)
             return {
               experience: newExp - expForNextLevel,
-              level: state.level + 1,
+              level: nextLevel,
             }
           }
           return { experience: newExp }
@@ -91,6 +95,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'posture-ai-user',
+      version: 1,
     }
   )
 )
